@@ -31,7 +31,7 @@ router.post('/register', async (req, res) => {
 
     const userId = result.lastInsertRowid;
 
-    db.prepare('INSERT INTO configuracion (usuario_id) VALUES (?)').run(userId);
+    db.prepare('INSERT OR IGNORE INTO configuracion (usuario_id) VALUES (?)').run(userId);
 
     const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
 
@@ -53,12 +53,28 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email y contraseña son requeridos' });
     }
 
-    const user = db.prepare(
+    let user = db.prepare(
       'SELECT id, nombre, email, password_hash, cedula, cargo, rol, foto_perfil FROM usuarios WHERE email = ?'
     ).get(email) as any;
 
+    // Auto-create user if DB was reset (Render free tier)
     if (!user) {
-      return res.status(401).json({ error: 'Credenciales incorrectas' });
+      const password_hash = await bcrypt.hash(password, 10);
+      const existingCount = db.prepare('SELECT COUNT(*) as count FROM usuarios').get() as any;
+      const rol = existingCount.count === 0 ? 'admin' : 'user';
+      const nombre = email.split('@')[0];
+
+      const result = db.prepare(
+        'INSERT INTO usuarios (nombre, email, password_hash, cedula, cargo, rol) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run(nombre, email, password_hash, '', '', rol);
+      const userId = result.lastInsertRowid;
+      db.prepare('INSERT OR IGNORE INTO configuracion (usuario_id) VALUES (?)').run(userId);
+
+      const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
+      return res.status(201).json({
+        token,
+        user: { id: userId, nombre, email, cedula: '', cargo: '', rol, foto_perfil: '' },
+      });
     }
 
     const valid = await bcrypt.compare(password, user.password_hash);
