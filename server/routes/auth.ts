@@ -21,9 +21,12 @@ router.post('/register', async (req, res) => {
 
     const password_hash = await bcrypt.hash(password, 10);
 
+    const existingCount = db.prepare('SELECT COUNT(*) as count FROM usuarios').get() as any;
+    const rol = existingCount.count === 0 ? 'admin' : 'user';
+
     const result = db.prepare(
-      'INSERT INTO usuarios (nombre, email, password_hash, cedula, cargo) VALUES (?, ?, ?, ?, ?)'
-    ).run(nombre, email, password_hash, cedula || '', cargo || '');
+      'INSERT INTO usuarios (nombre, email, password_hash, cedula, cargo, rol) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(nombre, email, password_hash, cedula || '', cargo || '', rol);
 
     const userId = result.lastInsertRowid;
 
@@ -33,7 +36,7 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({
       token,
-      user: { id: userId, nombre, email, cedula, cargo, rol: 'user' as const, foto_perfil: '' },
+      user: { id: userId, nombre, email, cedula, cargo, rol: rol as 'admin' | 'user', foto_perfil: '' },
     });
   } catch (err) {
     console.error('Register error:', err);

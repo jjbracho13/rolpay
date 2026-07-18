@@ -4,7 +4,7 @@ function getBaseUrl(): string {
   if (typeof window !== 'undefined' && (window as any).Capacitor) {
     const saved = localStorage.getItem('api_url');
     if (saved) return saved;
-    return 'http://localhost:3001';
+    return 'https://rolpay.onrender.com';
   }
   return '/api';
 }
