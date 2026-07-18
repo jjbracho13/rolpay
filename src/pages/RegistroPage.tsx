@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiGetRegistroMes, apiSaveRegistro, apiGetConfig } from '../api';
-import type { Registro, Configuracion } from '../types';
-import { MESES, formatCurrency } from '../types';
+import type { Configuracion } from '../types';
+import { MESES } from '../types';
 
 const ahora = new Date();
 const MES_ACTUAL = ahora.getMonth() + 1;
@@ -20,7 +20,7 @@ export default function RegistroPage() {
   const [horas50, setHoras50] = useState(0);
   const [horas100, setHoras100] = useState(0);
   const [prestamo, setPrestamo] = useState(0);
-  const [config, setConfig] = useState<Configuracion | null>(null);
+  const [_config, setConfig] = useState<Configuracion | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
