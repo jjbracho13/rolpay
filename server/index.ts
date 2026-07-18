@@ -115,3 +115,16 @@ app.get('/{*splat}', (_req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor RolPay corriendo en http://localhost:${PORT}`);
 });
+
+// Keep-alive: prevent Render free tier from sleeping
+if (process.env.NODE_ENV === 'production') {
+  const RENDER_URL = process.env.RENDER_EXTERNAL_URL || 'https://rolpay.onrender.com';
+  setInterval(async () => {
+    try {
+      await fetch(`${RENDER_URL}/api/user`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch {}
+  }, 14 * 60 * 1000); // every 14 minutes
+}
