@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import db from '../db/connection.js';
+import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'rolpay_secret_key_2024';
@@ -83,6 +84,21 @@ router.post('/login', async (req, res) => {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Error del servidor' });
   }
+});
+
+router.post('/promote', authMiddleware, (req: AuthRequest, res) => {
+  const caller = db.prepare('SELECT rol FROM usuarios WHERE id = ?').get(req.userId) as any;
+  if (!caller || caller.rol !== 'admin') {
+    return res.status(403).json({ error: 'Solo admins pueden promover usuarios' });
+  }
+  const { email, rol } = req.body;
+  if (!email || !rol) {
+    return res.status(400).json({ error: 'email y rol son requeridos' });
+  }
+  db.prepare('UPDATE usuarios SET rol = ? WHERE email = ?').run(rol, email);
+  const user = db.prepare('SELECT id, nombre, email, cedula, cargo, rol, foto_perfil FROM usuarios WHERE email = ?').get(email);
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+  res.json(user);
 });
 
 export default router;
