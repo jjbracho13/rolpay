@@ -104,14 +104,8 @@ export default function ReciboPage() {
             </select>
           </div>
           <PdfDownload
-            user={user}
-            config={config}
-            calculo={calculo}
             mes={mes}
             anio={anio}
-            horas25={registro.horas_25}
-            horas50={registro.horas_50}
-            horas100={registro.horas_100}
           />
         </div>
       </div>
