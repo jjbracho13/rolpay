@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiGetConfig, apiUpdateConfig, apiGetUser, apiUpdateUser, apiUploadPhoto, apiDeletePhoto, apiGetConceptos, apiCreateConcepto, apiDeleteConcepto } from '../api';
+import { usePhotoUrl } from '../hooks/usePhotoUrl';
 import type { Configuracion, User, ConceptoVariable } from '../types';
 
 export default function ConfigPage() {
@@ -13,6 +14,7 @@ export default function ConfigPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const photoUrl = usePhotoUrl(user?.foto_perfil);
   const [msg, setMsg] = useState('');
   const [nuevoConcepto, setNuevoConcepto] = useState({ nombre: '', tipo: 'deduccion' as 'asignacion' | 'deduccion', monto: 0 });
 
@@ -218,9 +220,9 @@ export default function ConfigPage() {
           <p className="text-xs md:text-sm text-slate-500 mt-1">Aparecerá en el recibo de pago</p>
         </div>
         <div className="p-4 md:p-5 flex items-center gap-4 md:gap-6">
-          {user?.foto_perfil ? (
+          {photoUrl ? (
             <img
-              src={`${user.foto_perfil}?v=${user.id}_${Date.now()}`}
+              src={photoUrl}
               alt={user.nombre}
               className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-2 border-slate-600"
             />

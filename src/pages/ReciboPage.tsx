@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiGetRegistroMes, apiGetConfig, apiGetUser } from '../api';
+import { usePhotoUrl } from '../hooks/usePhotoUrl';
 import type { Registro, Configuracion, User, CalculoSalario } from '../types';
 import { MESES, formatCurrency } from '../types';
 import PdfDownload from '../components/PdfDownload';
@@ -22,6 +23,7 @@ export default function ReciboPage() {
   const [registro, setRegistro] = useState<Registro | null>(null);
   const [calculo, setCalculo] = useState<CalculoSalario | null>(null);
   const [loading, setLoading] = useState(true);
+  const photoUrl = usePhotoUrl(user?.foto_perfil);
 
   useEffect(() => {
     if (!token) return;
@@ -120,9 +122,9 @@ export default function ReciboPage() {
         <div className="bg-slate-800 text-white px-4 md:px-8 py-4 md:py-6">
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-3 md:gap-4">
-              {user?.foto_perfil && (
+              {photoUrl && (
                   <img
-                    src={`${user.foto_perfil}?v=${user.id}_${Date.now()}`}
+                    src={photoUrl}
                   alt={user.nombre}
                   className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover border-2 border-slate-600"
                 />

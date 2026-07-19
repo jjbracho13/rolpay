@@ -1,5 +1,18 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usePhotoUrl } from '../hooks/usePhotoUrl';
+
+function UserPhoto({ foto, nombre, className }: { foto: string | null | undefined; nombre: string; className: string }) {
+  const url = usePhotoUrl(foto);
+  if (!url) {
+    return (
+      <div className={`${className} rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-sm font-bold`}>
+        {nombre?.charAt(0) || '?'}
+      </div>
+    );
+  }
+  return <img src={url} alt={nombre} className={`${className} rounded-full object-cover border border-slate-600`} />;
+}
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -72,17 +85,7 @@ export default function Layout() {
 
         <div className="p-4 border-t border-slate-700/50">
           <div className="flex items-center gap-3 mb-3 px-2">
-            {user?.foto_perfil ? (
-              <img
-                src={`${user.foto_perfil}?v=${user.id}_${Date.now()}`}
-                alt={user.nombre}
-                className="w-8 h-8 rounded-full object-cover border border-slate-600"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-sm font-bold">
-                {user?.nombre?.charAt(0) || '?'}
-              </div>
-            )}
+            <UserPhoto foto={user?.foto_perfil} nombre={user?.nombre || ''} className="w-8 h-8" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">{user?.nombre}</p>
               <p className="text-xs text-slate-500 truncate">{user?.email}</p>

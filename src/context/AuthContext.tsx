@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { User } from '../types';
+import { apiGetUser } from '../api';
 
 interface AuthContextType {
   user: User | null;
@@ -32,6 +33,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     return localStorage.getItem('rolpay_token');
   });
+
+  // Force re-fetch user data from API on startup to get latest foto_perfil
+  useEffect(() => {
+    if (!token) return;
+    apiGetUser(token)
+      .then((fresh) => setUser(fresh))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (token) localStorage.setItem('rolpay_token', token);
