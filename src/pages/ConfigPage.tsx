@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiGetConfig, apiUpdateConfig, apiGetUser, apiUpdateUser, apiUploadPhoto, apiDeletePhoto, apiGetConceptos, apiCreateConcepto, apiDeleteConcepto } from '../api';
 import { usePhotoUrl } from '../hooks/usePhotoUrl';
+import { isBiometricAvailable, getCredentials, saveCredentials, deleteCredentials } from '../utils/biometric';
 import type { Configuracion, User, ConceptoVariable } from '../types';
 
 export default function ConfigPage() {
@@ -15,6 +16,8 @@ export default function ConfigPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const photoUrl = usePhotoUrl(user?.foto_perfil);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [msg, setMsg] = useState('');
   const [nuevoConcepto, setNuevoConcepto] = useState({ nombre: '', tipo: 'deduccion' as 'asignacion' | 'deduccion', monto: 0 });
 
@@ -25,6 +28,13 @@ export default function ConfigPage() {
       setUser(usr);
       setConceptos(conceptos);
     }).finally(() => setLoading(false));
+
+    isBiometricAvailable().then((avail) => {
+      setBiometricAvailable(avail);
+      if (avail) {
+        getCredentials().then((creds) => setBiometricEnabled(!!creds));
+      }
+    });
   }, [token]);
 
   const handleConfigChange = (field: keyof Configuracion, value: number) => {
@@ -110,6 +120,25 @@ export default function ConfigPage() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleToggleBiometric = async () => {
+    if (biometricEnabled) {
+      await deleteCredentials();
+      setBiometricEnabled(false);
+      setMsg('Inicio biométrico desactivado');
+    } else {
+      if (!user?.email) return;
+      const latestUser = await apiGetUser(token!);
+      if (!latestUser?.foto_perfil) {
+        setMsg('Primero sube una foto de perfil para usar biometría');
+        setTimeout(() => setMsg(''), 3000);
+        return;
+      }
+      setMsg('Ingresa tu contraseña para habilitar la biometría');
+      setTimeout(() => setMsg(''), 5000);
+    }
+    setTimeout(() => setMsg(''), 3000);
   };
 
   const handleCreateConcepto = async () => {
@@ -259,6 +288,33 @@ export default function ConfigPage() {
           </div>
         </div>
       </div>
+
+      {biometricAvailable && (
+        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl">
+          <div className="p-4 md:p-5 border-b border-slate-700/50">
+            <h2 className="text-base md:text-lg font-semibold text-white">Inicio Biométrico</h2>
+            <p className="text-xs md:text-sm text-slate-500 mt-1">Inicia sesión con huella dactilar o Face ID</p>
+          </div>
+          <div className="p-4 md:p-5 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-300">{biometricEnabled ? 'Activado' : 'Desactivado'}</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {biometricEnabled ? 'Puedes iniciar sesión con tu biometría' : 'Activa para iniciar sesión más rápido'}
+              </p>
+            </div>
+            <button
+              onClick={handleToggleBiometric}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition cursor-pointer ${
+                biometricEnabled ? 'bg-emerald-600' : 'bg-slate-600'
+              }`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                biometricEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Datos personales */}
       <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl">
