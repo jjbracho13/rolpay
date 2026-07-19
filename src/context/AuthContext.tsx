@@ -2,7 +2,6 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import type { ReactNode } from 'react';
 import type { User } from '../types';
 import { apiGetUser } from '../api';
-import { deleteCredentials } from '../utils/biometric';
 
 interface AuthContextType {
   user: User | null;
@@ -59,7 +58,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('rolpay_token');
     localStorage.removeItem('rolpay_user');
     localStorage.removeItem('rolpay_last_activity');
-    deleteCredentials().catch(() => {});
   }, []);
 
   // Session timeout - auto logout after inactivity

@@ -127,18 +127,22 @@ export default function ConfigPage() {
       await deleteCredentials();
       setBiometricEnabled(false);
       setMsg('Inicio biométrico desactivado');
+      setTimeout(() => setMsg(''), 3000);
     } else {
       if (!user?.email) return;
-      const latestUser = await apiGetUser(token!);
-      if (!latestUser?.foto_perfil) {
-        setMsg('Primero sube una foto de perfil para usar biometría');
-        setTimeout(() => setMsg(''), 3000);
-        return;
+      const password = window.prompt('Ingresa tu contraseña para habilitar la biometría:');
+      if (!password) return;
+      try {
+        const { apiLogin } = await import('../api');
+        await apiLogin(user.email, password);
+        await saveCredentials(user.email, password);
+        setBiometricEnabled(true);
+        setMsg('Inicio biométrico activado');
+      } catch {
+        setMsg('Contraseña incorrecta');
       }
-      setMsg('Ingresa tu contraseña para habilitar la biometría');
-      setTimeout(() => setMsg(''), 5000);
+      setTimeout(() => setMsg(''), 3000);
     }
-    setTimeout(() => setMsg(''), 3000);
   };
 
   const handleCreateConcepto = async () => {
