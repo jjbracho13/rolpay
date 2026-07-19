@@ -33,11 +33,6 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: { cacheName: 'api-cache', networkTimeoutSeconds: 5 },
           },
-          {
-            urlPattern: /\.(png|jpg|jpeg|webp)$/,
-            handler: 'CacheFirst',
-            options: { cacheName: 'images-cache', expiration: { maxEntries: 50, maxAgeSeconds: 30 * 24 * 60 * 60 } },
-          },
         ],
       },
     }),
