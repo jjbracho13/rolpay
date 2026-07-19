@@ -45,8 +45,13 @@ const upload = multer({
 app.use(cors());
 app.use(express.json());
 
-// Servir archivos estáticos (fotos)
-app.use('/uploads', express.static(uploadsDir));
+// Servir archivos estáticos (fotos) - sin caché
+app.use('/uploads', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+}, express.static(uploadsDir));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/config', configRoutes);

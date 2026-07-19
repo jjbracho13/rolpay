@@ -228,20 +228,22 @@ export default function ConfigPage() {
               {user?.nombre?.charAt(0) || '?'}
             </div>
           )}
-          <div className="flex flex-col gap-2 relative">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={handlePhotoUpload}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-            />
-            <button
-              disabled={uploading}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50 text-white text-sm font-medium rounded-lg transition"
-            >
-              {uploading ? 'Subiendo...' : user?.foto_perfil ? 'Cambiar' : 'Subir foto'}
-            </button>
+          <div className="flex flex-col gap-2">
+            <div className="relative">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handlePhotoUpload}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              />
+              <button
+                disabled={uploading}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50 text-white text-sm font-medium rounded-lg transition w-full"
+              >
+                {uploading ? 'Subiendo...' : user?.foto_perfil ? 'Cambiar' : 'Subir foto'}
+              </button>
+            </div>
             {user?.foto_perfil && (
               <button
                 onClick={handleDeletePhoto}
