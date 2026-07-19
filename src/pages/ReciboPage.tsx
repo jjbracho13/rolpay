@@ -121,8 +121,8 @@ export default function ReciboPage() {
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-3 md:gap-4">
               {user?.foto_perfil && (
-                <img
-                  src={user.foto_perfil}
+                  <img
+                    src={`${user.foto_perfil}?v=${user.id}_${Date.now()}`}
                   alt={user.nombre}
                   className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover border-2 border-slate-600"
                 />

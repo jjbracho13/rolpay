@@ -74,7 +74,7 @@ export default function Layout() {
           <div className="flex items-center gap-3 mb-3 px-2">
             {user?.foto_perfil ? (
               <img
-                src={user.foto_perfil}
+                src={`${user.foto_perfil}?v=${user.id}_${Date.now()}`}
                 alt={user.nombre}
                 className="w-8 h-8 rounded-full object-cover border border-slate-600"
               />

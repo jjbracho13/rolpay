@@ -219,7 +219,7 @@ export default function ConfigPage() {
         <div className="p-4 md:p-5 flex items-center gap-4 md:gap-6">
           {user?.foto_perfil ? (
             <img
-              src={user.foto_perfil}
+              src={`${user.foto_perfil}?v=${user.id}_${Date.now()}`}
               alt={user.nombre}
               className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-2 border-slate-600"
             />
