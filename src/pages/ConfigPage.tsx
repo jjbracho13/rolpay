@@ -94,6 +94,7 @@ export default function ConfigPage() {
 
   const handleDeletePhoto = async () => {
     if (!token) return;
+    if (!window.confirm('¿Estás seguro de que quieres eliminar tu foto de perfil?')) return;
     setUploading(true);
     setMsg('');
     try {

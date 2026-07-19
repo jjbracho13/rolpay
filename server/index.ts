@@ -84,12 +84,26 @@ app.post('/api/user/photo', authMiddleware, upload.single('foto'), (req: AuthReq
     return res.status(400).json({ error: 'No se proporcionó imagen' });
   }
 
-  const fotoPath = `/uploads/user_${req.userId}${path.extname(req.file.originalname)}`;
+  const ext = path.extname(req.file.originalname);
+  const fotoPath = `/uploads/user_${req.userId}${ext}`;
+  const finalPath = path.join(uploadsDir, `user_${req.userId}${ext}`);
+
+  // Delete old photo with different extension
+  const extensions = ['.jpg', '.jpeg', '.png', '.webp'];
+  for (const e of extensions) {
+    const oldPath = path.join(uploadsDir, `user_${req.userId}${e}`);
+    if (oldPath !== finalPath && fs.existsSync(oldPath)) {
+      fs.unlinkSync(oldPath);
+    }
+  }
+
   db.prepare('UPDATE usuarios SET foto_perfil = ? WHERE id = ?').run(fotoPath, req.userId);
 
   const user = db.prepare(
     'SELECT id, nombre, email, cedula, cargo, rol, foto_perfil FROM usuarios WHERE id = ?'
-  ).get(req.userId);
+  ).get(req.userId) as any;
+  // Add timestamp to bust cache
+  user.foto_perfil = `${fotoPath}?t=${Date.now()}`;
   res.json(user);
 });
 
@@ -98,9 +112,21 @@ app.delete('/api/user/photo', authMiddleware, (req: AuthRequest, res) => {
   const user = db.prepare('SELECT foto_perfil FROM usuarios WHERE id = ?').get(req.userId) as any;
 
   if (user?.foto_perfil) {
-    const filePath = path.join(__dirname, '..', 'public', user.foto_perfil);
+    // Strip query params and /uploads/ prefix before deleting file
+    const cleanPath = user.foto_perfil.split('?')[0];
+    const filename = path.basename(cleanPath);
+    const filePath = path.join(uploadsDir, filename);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
+    }
+    // Also try deleting other extensions
+    const ext = path.extname(filename);
+    const base = filename.replace(ext, '');
+    for (const e of ['.jpg', '.jpeg', '.png', '.webp']) {
+      if (e !== ext) {
+        const altPath = path.join(uploadsDir, base + e);
+        if (fs.existsSync(altPath)) fs.unlinkSync(altPath);
+      }
     }
     db.prepare('UPDATE usuarios SET foto_perfil = ? WHERE id = ?').run('', req.userId);
   }
