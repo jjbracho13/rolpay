@@ -1,4 +1,5 @@
-import { PDFDownloadLink, Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+import { useState } from 'react';
+import { pdf, Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import type { User, Configuracion, CalculoSalario } from '../types';
 import { MESES } from '../types';
 
@@ -125,15 +126,49 @@ function ReciboDocument({ user, config, calculo, mes, anio, horas25, horas50, ho
 }
 
 export default function PdfDownload(props: Props) {
+  const [generating, setGenerating] = useState(false);
   const filename = `recibo_${MESES[props.mes - 1]}_${props.anio}.pdf`;
 
+  const handleDownload = async () => {
+    setGenerating(true);
+    try {
+      const blob = await pdf(<ReciboDocument {...props} />).toBlob();
+      const url = URL.createObjectURL(blob);
+
+      if ((window as any).Capacitor) {
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const arrayBuffer = await blob.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        await Filesystem.writeFile({
+          path: filename,
+          data: base64,
+          directory: Directory.Downloads,
+        });
+        alert('PDF guardado en Descargas');
+      } else {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('PDF error:', err);
+      alert('Error al generar el PDF');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
-    <PDFDownloadLink
-      document={<ReciboDocument {...props} />}
-      fileName={filename}
-      className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition cursor-pointer text-sm"
+    <button
+      onClick={handleDownload}
+      disabled={generating}
+      className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white font-medium rounded-lg transition cursor-pointer text-sm"
     >
-      {({ loading }) => loading ? 'Generando PDF...' : 'Descargar PDF'}
-    </PDFDownloadLink>
+      {generating ? 'Generando PDF...' : 'Descargar PDF'}
+    </button>
   );
 }
