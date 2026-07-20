@@ -99,94 +99,140 @@ router.get('/pdf/:mes/:anio', (req: AuthRequest, res) => {
   const calculo = getCalculo(req.userId, registro);
   const fmt = (v: number) => `$ ${v.toFixed(2)}`;
   const mesNombre = MESES[mes - 1];
+  const ssu = config?.sueldo_base || 487;
 
-  const doc = new PDFDocument({ size: 'A4', margin: 40 });
+  const doc = new PDFDocument({ size: 'A4', margin: 0 });
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="recibo_${mesNombre}_${anio}.pdf"`);
   doc.pipe(res);
 
-  // Header: dark blue background
-  const headerH = 70;
-  doc.save();
-  doc.roundedRect(40, 30, 515, headerH, 6).fill('#1e293b');
+  const pageW = 595.28;
+  const margin = 40;
+  const contentW = pageW - margin * 2;
 
-  // Photo (right side of header)
-  let textEndX = 480;
+  // === HEADER: slate-800 background ===
+  const headerH = 72;
+  const headerY = 30;
+  doc.roundedRect(margin, headerY, contentW, headerH, 8).fill('#1e293b');
+
+  // Photo (circular, left side)
+  let titleX = margin + 16;
+  const photoR = 26;
+  const photoCx = margin + 16 + photoR;
+  const photoCy = headerY + headerH / 2;
+
   if (user?.foto_perfil) {
     try {
       const cleanPath = user.foto_perfil.split('?')[0];
       const filename = path.basename(cleanPath);
       const filePath = path.join(process.cwd(), 'public', 'uploads', filename);
       if (fs.existsSync(filePath)) {
-        doc.image(filePath, 490, 36, { width: 58, height: 58, fit: [58, 58], radius: 29 });
-        textEndX = 480;
+        doc.save();
+        doc.circle(photoCx, photoCy, photoR).clip();
+        doc.image(filePath, photoCx - photoR, photoCy - photoR, { width: photoR * 2, height: photoR * 2 });
+        doc.restore();
+        // Border around photo
+        doc.circle(photoCx, photoCy, photoR + 1).lineWidth(1).stroke('#475569');
+        titleX = photoCx + photoR + 12;
       }
     } catch { /* ignore */ }
   }
 
-  // Title + subtitle in header
-  doc.fontSize(18).font('Helvetica-Bold').fillColor('white').text('RECIBO DE SUELDO', 56, 42, { width: textEndX - 56 });
-  doc.fontSize(10).font('Helvetica').fillColor('#94a3b8').text(`${mesNombre} ${anio}`, 56, 66, { width: textEndX - 56 });
-  doc.restore();
+  // Title + subtitle
+  doc.fontSize(16).font('Helvetica-Bold').fillColor('white')
+    .text('RECIBO DE SUELDO', titleX, headerY + 16, { width: 300 });
+  doc.fontSize(10).font('Helvetica').fillColor('#94a3b8')
+    .text(`${mesNombre} ${anio}`, titleX, headerY + 38, { width: 300 });
 
-  // Employee info below header
-  doc.fillColor('#333');
-  doc.fontSize(10).font('Helvetica');
-  doc.text(`Empleado: ${user?.nombre || '-'}`, 40, 110, { continued: true });
-  doc.text(`     C.I: ${user?.cedula || '-'}`);
-  doc.text(`Cargo: ${user?.cargo || '-'}`, 40, 125, { continued: true });
-  doc.text(`   Valor Hora: ${fmt(calculo.valor_hora)}`);
+  // S-S-U right side
+  doc.fontSize(10).font('Helvetica').fillColor('#94a3b8')
+    .text(`S-S-U   ${ssu}`, margin + contentW - 120, headerY + 22, { width: 120, align: 'right' });
 
-  doc.moveTo(40, 145).lineTo(555, 145).strokeColor('#e2e8f0').stroke();
+  // === EMPLOYEE DATA: light gray bg ===
+  const dataY = headerY + headerH + 12;
+  doc.roundedRect(margin, dataY, contentW, 52, 4).fill('#f8fafc');
 
-  let y = 160;
-  doc.fontSize(11).font('Helvetica-Bold').fillColor('#64748b').text('ASIGNACIONES', 40, y);
-  y += 18;
-  doc.font('Helvetica').fillColor('#333').fontSize(10);
-  const drawRow = (label: string, value: string, yPos: number, color?: string) => {
-    doc.fillColor(color || '#333').text(label, 50, yPos, { width: 300 });
-    doc.text(value, 400, yPos, { width: 150, align: 'right' });
-    return yPos + 16;
+  const col1X = margin + 16;
+  const col2X = margin + contentW / 2 + 8;
+  const rowH = 20;
+
+  doc.fontSize(9).font('Helvetica');
+  doc.fillColor('#64748b').text('Empleado:', col1X, dataY + 10);
+  doc.fillColor('#1e293b').font('Helvetica-Bold').text(user?.nombre || '-', col1X + 55, dataY + 10);
+  doc.fillColor('#64748b').font('Helvetica').text('C.I:', col2X, dataY + 10);
+  doc.fillColor('#1e293b').font('Helvetica-Bold').text(user?.cedula || '-', col2X + 22, dataY + 10);
+
+  doc.fillColor('#64748b').font('Helvetica').text('Cargo:', col1X, dataY + 10 + rowH);
+  doc.fillColor('#1e293b').font('Helvetica-Bold').text(user?.cargo || '-', col1X + 40, dataY + 10 + rowH);
+  doc.fillColor('#64748b').font('Helvetica').text('Valor Hora:', col2X, dataY + 10 + rowH);
+  doc.fillColor('#1e293b').font('Helvetica-Bold').text(fmt(calculo.valor_hora), col2X + 60, dataY + 10 + rowH);
+
+  // === ASIGNACIONES ===
+  let y = dataY + 70;
+  doc.fontSize(10).font('Helvetica-Bold').fillColor('#64748b')
+    .text('ASIGNACIONES', margin + 16, y);
+  y += 20;
+  doc.font('Helvetica').fontSize(9);
+  const drawRow = (label: string, value: string, yPos: number, valueColor?: string) => {
+    doc.fillColor('#475569').text(label, margin + 20, yPos, { width: 320 });
+    doc.fillColor(valueColor || '#1e293b').font('Helvetica-Bold')
+      .text(value, margin + contentW - 180, yPos, { width: 160, align: 'right' });
+    doc.font('Helvetica');
+    return yPos + 18;
   };
 
   y = drawRow('Sueldo Base', fmt(calculo.sueldo_base), y);
-  y = drawRow(`Horas Extras 25% (${registro.horas_25}h)`, fmt(calculo.recargo_25), y);
-  y = drawRow(`Horas Extras 50% (${registro.horas_50}h)`, fmt(calculo.recargo_50), y);
-  y = drawRow(`Horas Extras 100% (${registro.horas_100}h)`, fmt(calculo.recargo_100), y);
-  if (calculo.fondos_reserva > 0) y = drawRow(`Fondos de Reserva (${config?.fondo_reserva_pct}%)`, fmt(calculo.fondos_reserva), y);
+  y = drawRow(`Horas 25% (${registro.horas_25}h)`, fmt(calculo.recargo_25), y);
+  y = drawRow(`Horas 50% (${registro.horas_50}h)`, fmt(calculo.recargo_50), y);
+  y = drawRow(`Horas 100% (${registro.horas_100}h)`, fmt(calculo.recargo_100), y);
+  if (calculo.fondos_reserva > 0) y = drawRow(`Fondos Reserva (${config?.fondo_reserva_pct}%)`, fmt(calculo.fondos_reserva), y);
   if (calculo.bonificacion > 0) y = drawRow('Bonificación', fmt(calculo.bonificacion), y);
   for (const c of calculo.conceptos_asignaciones) {
     y = drawRow(c.nombre, `+${fmt(c.monto)}`, y, '#16a34a');
   }
-  doc.moveTo(50, y).lineTo(555, y).strokeColor('#ccc').stroke();
+  // Total divider
+  doc.moveTo(margin + 16, y).lineTo(margin + contentW - 16, y).lineWidth(0.5).stroke('#e2e8f0');
   y += 6;
+  doc.font('Helvetica-Bold').fontSize(9);
   y = drawRow('Total Asignaciones', fmt(calculo.total_asignaciones), y);
 
-  y += 14;
-  doc.fontSize(11).font('Helvetica-Bold').fillColor('#64748b').text('DEDUCIBLES', 40, y);
-  y += 18;
-  doc.font('Helvetica').fillColor('#333').fontSize(10);
+  // === DEDUCIBLES: light bg ===
+  y += 10;
+  doc.roundedRect(margin, y - 4, contentW, 0, 0).fill(); // spacer
+  y += 4;
+  doc.fontSize(10).font('Helvetica-Bold').fillColor('#64748b')
+    .text('DEDUCIBLES', margin + 16, y);
+  y += 20;
+  doc.font('Helvetica').fontSize(9);
   y = drawRow(`Aporte IESS (${config?.aporte_iess_pct}%)`, fmt(calculo.iess), y);
   if (calculo.subsidio_medico > 0) y = drawRow('Subsidio Médico', fmt(calculo.subsidio_medico), y);
-  if (calculo.anticipo_quincena > 0) y = drawRow('Anticipo de Quincena', fmt(calculo.anticipo_quincena), y);
+  if (calculo.anticipo_quincena > 0) y = drawRow('Anticipo Quincena', fmt(calculo.anticipo_quincena), y);
   if (calculo.prestamo_quirografario > 0) y = drawRow('Préstamo Quirografario', fmt(calculo.prestamo_quirografario), y);
   for (const c of calculo.conceptos_deducciones) {
     y = drawRow(c.nombre, `-${fmt(c.monto)}`, y, '#dc2626');
   }
-  doc.moveTo(50, y).lineTo(555, y).strokeColor('#ccc').stroke();
+  doc.moveTo(margin + 16, y).lineTo(margin + contentW - 16, y).lineWidth(0.5).stroke('#e2e8f0');
   y += 6;
+  doc.font('Helvetica-Bold').fontSize(9);
   y = drawRow('Total Deducibles', fmt(calculo.total_deducibles), y);
 
-  y += 16;
-  doc.rect(40, y, 515, 40).fill('#f0fdf4');
-  doc.fillColor('#1e293b').fontSize(14).font('Helvetica-Bold').text('NETO A COBRAR', 50, y + 6, { width: 300 });
-  doc.fillColor('#16a34a').fontSize(20).text(fmt(calculo.neto_cobrar), 400, y + 4, { width: 145, align: 'right' });
+  // === NETO A COBRAR: green top border ===
+  y += 12;
+  doc.moveTo(margin, y).lineTo(margin + contentW, y).lineWidth(2).stroke('#22c55e');
+  y += 8;
+  doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e293b')
+    .text('NETO A COBRAR', margin + 16, y, { width: 250 });
+  doc.fontSize(18).fillColor('#16a34a')
+    .text(fmt(calculo.neto_cobrar), margin + contentW - 180, y - 2, { width: 160, align: 'right' });
 
-  y += 70;
-  doc.moveTo(50, y).lineTo(250, y).strokeColor('#999').stroke();
-  doc.fontSize(9).fillColor('#666').text('Firma del Empleado', 50, y + 4, { width: 200, align: 'center' });
-  doc.moveTo(340, y).lineTo(545, y).strokeColor('#999').stroke();
-  doc.text('Firma del Empleador', 340, y + 4, { width: 205, align: 'center' });
+  // === FIRMAS ===
+  y += 50;
+  const firmaW = 140;
+  doc.moveTo(margin + 30, y).lineTo(margin + 30 + firmaW, y).lineWidth(0.5).stroke('#94a3b8');
+  doc.moveTo(margin + contentW - 30 - firmaW, y).lineTo(margin + contentW - 30, y).lineWidth(0.5).stroke('#94a3b8');
+  doc.fontSize(8).font('Helvetica').fillColor('#64748b')
+    .text('Firma Empleado', margin + 30, y + 5, { width: firmaW, align: 'center' })
+    .text('Firma Empleador', margin + contentW - 30 - firmaW, y + 5, { width: firmaW, align: 'center' });
 
   doc.end();
 });
