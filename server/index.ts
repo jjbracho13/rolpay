@@ -53,22 +53,28 @@ app.use('/uploads', (req, res, next) => {
   next();
 }, express.static(uploadsDir));
 
-// Kill old service workers
+// Kill old service workers and clear all caches
+const CLEANUP_SW = `
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.map(k => caches.delete(k)))
+    ).then(() => self.registration.unregister())
+    .then(() => self.clients.matchAll())
+    .then(clients => {
+      for (const c of clients) { c.navigate(c.url); }
+    })
+  );
+});
+`;
 app.get('/sw.js', (_req, res) => {
   res.set('Content-Type', 'application/javascript');
-  res.send(`
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', () => {
-  self.registration.unregister();
-  self.clients.matchAll().then(clients => {
-    for (const c of clients) { c.navigate(c.url); }
-  });
-});
-`);
+  res.send(CLEANUP_SW);
 });
 app.get('/registerSW.js', (_req, res) => {
   res.set('Content-Type', 'application/javascript');
-  res.send('// removed');
+  res.send(CLEANUP_SW);
 });
 
 app.use('/api/auth', authRoutes);
