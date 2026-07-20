@@ -23,7 +23,8 @@ router.post('/register', async (req, res) => {
     const password_hash = await bcrypt.hash(password, 10);
 
     const existingCount = db.prepare('SELECT COUNT(*) as count FROM usuarios').get() as any;
-    const rol = existingCount.count === 0 ? 'admin' : 'user';
+    const hasAdmin = db.prepare('SELECT COUNT(*) as count FROM usuarios WHERE rol = ?').get('admin') as any;
+    const rol = (!hasAdmin || hasAdmin.count === 0) ? 'admin' : 'user';
 
     const result = db.prepare(
       'INSERT INTO usuarios (nombre, email, password_hash, cedula, cargo, rol) VALUES (?, ?, ?, ?, ?, ?)'
@@ -61,7 +62,8 @@ router.post('/login', async (req, res) => {
     if (!user) {
       const password_hash = await bcrypt.hash(password, 10);
       const existingCount = db.prepare('SELECT COUNT(*) as count FROM usuarios').get() as any;
-      const rol = existingCount.count === 0 ? 'admin' : 'user';
+      const hasAdmin = db.prepare('SELECT COUNT(*) as count FROM usuarios WHERE rol = ?').get('admin') as any;
+      const rol = (!hasAdmin || hasAdmin.count === 0) ? 'admin' : 'user';
       const nombre = email.split('@')[0];
 
       const result = db.prepare(
@@ -80,6 +82,15 @@ router.post('/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
       return res.status(401).json({ error: 'Credenciales incorrectas' });
+    }
+
+    // Auto-promote first user to admin if no admins exist
+    if (user.rol !== 'admin') {
+      const hasAdmin = db.prepare('SELECT COUNT(*) as count FROM usuarios WHERE rol = ?').get('admin') as any;
+      if (!hasAdmin || hasAdmin.count === 0) {
+        db.prepare('UPDATE usuarios SET rol = ? WHERE id = ?').run('admin', user.id);
+        user.rol = 'admin';
+      }
     }
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
