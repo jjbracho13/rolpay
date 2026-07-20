@@ -18,40 +18,23 @@ export default function PdfDownload({ mes, anio }: Props) {
       const base = (window as any).Capacitor
         ? (localStorage.getItem('api_url') || 'https://rolpay.onrender.com/api').replace('/api', '')
         : '';
-      const pdfUrl = `${base}/api/registros/pdf/${mes}/${anio}`;
-
-      const res = await fetch(pdfUrl, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) {
-        let msg = 'Error al generar PDF';
-        try { const j = await res.json(); msg = j.error || msg; } catch {}
-        throw new Error(msg);
-      }
-
-      const blob = await res.blob();
-      const filename = `recibo_${MESES[mes - 1]}_${anio}.pdf`;
+      const url = `${base}/api/registros/pdf/${mes}/${anio}?token=${token}`;
 
       if ((window as any).Capacitor) {
-        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const res = await fetch(`${base}/api/registros/pdf/${mes}/${anio}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Error al generar PDF');
+        const blob = await res.blob();
         const buf = await blob.arrayBuffer();
         const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+        const filename = `recibo_${MESES[mes - 1]}_${anio}.pdf`;
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
         await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.ExternalStorage });
         const { Toast } = await import('@capacitor/toast');
         await Toast.show({ text: 'PDF guardado en Descargas', duration: 'long' });
       } else {
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = filename;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(blobUrl);
-        }, 100);
+        window.open(url, '_blank');
       }
     } catch (err: any) {
       alert(err.message || 'Error al generar el PDF');
