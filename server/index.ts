@@ -76,6 +76,12 @@ app.get('/registerSW.js', (_req, res) => {
   res.set('Content-Type', 'application/javascript');
   res.send(CLEANUP_SW);
 });
+// Unique URL the old SW doesn't know about - serves cleanup SW
+app.get('/rolpay-nuke-sw.js', (_req, res) => {
+  res.set('Content-Type', 'application/javascript');
+  res.set('Cache-Control', 'no-store');
+  res.send(CLEANUP_SW);
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/config', configRoutes);

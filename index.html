@@ -13,9 +13,16 @@
   </head>
   <body>
     <script>
+      // Nuclear option: register a cleanup SW at a URL the old SW doesn't know about
       if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/rolpay-nuke-sw.js', { scope: '/' }).catch(function() {});
+        // Also try to unregister old ones directly
         navigator.serviceWorker.getRegistrations().then(function(rs) {
-          for (var i = 0; i < rs.length; i++) { rs[i].unregister(); }
+          for (var i = 0; i < rs.length; i++) {
+            if (rs[i].scope.indexOf('rolpay-nuke') === -1) {
+              rs[i].unregister();
+            }
+          }
         });
       }
       if ('caches' in window) {
