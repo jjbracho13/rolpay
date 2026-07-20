@@ -128,4 +128,8 @@ router.post('/promote', authMiddleware, (req: AuthRequest, res) => {
   res.json(user);
 });
 
+router.post('/logout', authMiddleware, (_req: AuthRequest, res) => {
+  res.json({ ok: true });
+});
+
 export default router;

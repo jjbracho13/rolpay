@@ -157,3 +157,15 @@ export function apiAdminChangePassword(token: string, id: number, password: stri
 export function apiAdminDeleteUser(token: string, id: number) {
   return request<{ ok: boolean }>(`/admin/users/${id}`, token, { method: 'DELETE' });
 }
+
+export function apiAdminGetUserConfig(token: string, id: number) {
+  return request<{ user: any; config: Configuracion }>(`/admin/users/${id}/config`, token);
+}
+
+export function apiAdminUpdateUserConfig(token: string, id: number, data: {
+  nombre?: string; cedula?: string; cargo?: string;
+  sueldo_base?: number; horas_std?: number; aporte_iess_pct?: number; subsidio_medico?: number;
+  anticipo_quincena?: number; prestamo_quirografario?: number; fondo_reserva_pct?: number; bonificacion?: number;
+}) {
+  return request<{ user: any; config: Configuracion }>(`/admin/users/${id}/config`, token, { method: 'PUT', body: JSON.stringify(data) });
+}
