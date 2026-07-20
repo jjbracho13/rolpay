@@ -7,15 +7,6 @@ interface Props {
   anio: number;
 }
 
-function getBaseUrl(): string {
-  if (typeof window !== 'undefined' && (window as any).Capacitor) {
-    const saved = localStorage.getItem('api_url');
-    if (saved) return saved.replace('/api', '');
-    return 'https://rolpay.onrender.com';
-  }
-  return '';
-}
-
 export default function PdfDownload({ mes, anio }: Props) {
   const { token } = useAuth();
   const [generating, setGenerating] = useState(false);
@@ -24,46 +15,43 @@ export default function PdfDownload({ mes, anio }: Props) {
     if (!token) return;
     setGenerating(true);
     try {
-      const base = getBaseUrl();
+      const base = (window as any).Capacitor
+        ? (localStorage.getItem('api_url') || 'https://rolpay.onrender.com/api').replace('/api', '')
+        : '';
       const pdfUrl = `${base}/api/registros/pdf/${mes}/${anio}`;
 
+      const res = await fetch(pdfUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        let msg = 'Error al generar PDF';
+        try { const j = await res.json(); msg = j.error || msg; } catch {}
+        throw new Error(msg);
+      }
+
+      const blob = await res.blob();
+      const filename = `recibo_${MESES[mes - 1]}_${anio}.pdf`;
+
       if ((window as any).Capacitor) {
-        const res = await fetch(pdfUrl, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: 'Error' }));
-          throw new Error(err.error);
-        }
-        const blob = await res.blob();
-        const arrayBuffer = await blob.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-        const filename = `recibo_${MESES[mes - 1]}_${anio}.pdf`;
         const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        await Filesystem.writeFile({
-          path: filename,
-          data: base64,
-          directory: Directory.ExternalStorage,
-        });
+        const buf = await blob.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+        await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.ExternalStorage });
         const { Toast } = await import('@capacitor/toast');
         await Toast.show({ text: 'PDF guardado en Descargas', duration: 'long' });
       } else {
-        const res = await fetch(pdfUrl, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: 'Error' }));
-          throw new Error(err.error);
-        }
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
+        const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
-        a.download = `recibo_${MESES[mes - 1]}_${anio}.pdf`;
+        a.href = blobUrl;
+        a.download = filename;
+        a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(blobUrl);
+        }, 100);
       }
     } catch (err: any) {
       alert(err.message || 'Error al generar el PDF');
