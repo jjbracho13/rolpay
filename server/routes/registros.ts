@@ -105,14 +105,18 @@ router.get('/pdf/:mes/:anio', (req: AuthRequest, res) => {
 
   doc.fontSize(18).font('Helvetica-Bold').text('RECIBO DE SUELDO', 40, 40);
   doc.fontSize(10).font('Helvetica').fillColor('#666').text(`${mesNombre} ${anio}`, 40, 62);
-  doc.moveDown(0.5);
 
   doc.fillColor('#333');
+  doc.save();
   doc.fontSize(10).font('Helvetica');
-  doc.text(`Empleado: ${user?.nombre || '-'}`, 40, 85);
-  doc.text(`C.I: ${user?.cedula || '-'}`, 300, 85);
-  doc.text(`Cargo: ${user?.cargo || '-'}`, 40, 100);
-  doc.text(`Valor Hora: ${fmt(calculo.valor_hora)}`, 300, 100);
+  doc.text(`Empleado: ${user?.nombre || '-'}`, 40, 90, { continued: true });
+  doc.text(`     C.I: ${user?.cedula || '-'}`);
+  doc.restore();
+
+  doc.save();
+  doc.text(`Cargo: ${user?.cargo || '-'}`, 40, 105, { continued: true });
+  doc.text(`   Valor Hora: ${fmt(calculo.valor_hora)}`);
+  doc.restore();
 
   doc.moveTo(40, 120).lineTo(555, 120).strokeColor('#ccc').stroke();
 
