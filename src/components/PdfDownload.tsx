@@ -43,7 +43,7 @@ export default function PdfDownload({ mes, anio }: Props) {
         await Filesystem.writeFile({
           path: filename,
           data: base64,
-          directory: Directory.Downloads,
+          directory: Directory.ExternalStorage,
         });
         const { Toast } = await import('@capacitor/toast');
         await Toast.show({ text: 'PDF guardado en Descargas', duration: 'long' });

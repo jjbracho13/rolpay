@@ -256,7 +256,7 @@ export default function ConfigPage() {
           {photoUrl ? (
             <img
               src={photoUrl}
-              alt={user.nombre}
+              alt={user?.nombre}
               className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-2 border-slate-600"
             />
           ) : (

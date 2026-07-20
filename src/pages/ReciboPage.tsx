@@ -119,7 +119,7 @@ export default function ReciboPage() {
               {photoUrl && (
                   <img
                     src={photoUrl}
-                  alt={user.nombre}
+                  alt={user?.nombre}
                   className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover border-2 border-slate-600"
                 />
               )}

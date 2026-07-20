@@ -15,7 +15,6 @@ export async function verifyBiometric(): Promise<boolean> {
   try {
     await NativeBiometric.verifyIdentity({
       reason: 'Inicia sesión con tu huella o rostro',
-      cancelTitle: 'Cancelar',
     });
     return true;
   } catch {
