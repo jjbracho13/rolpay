@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import PDFDocument from 'pdfkit';
+import fs from 'fs';
+import path from 'path';
 import db from '../db/connection.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { calcularSalario } from '../utils/calculos.js';
@@ -103,25 +105,42 @@ router.get('/pdf/:mes/:anio', (req: AuthRequest, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="recibo_${mesNombre}_${anio}.pdf"`);
   doc.pipe(res);
 
-  doc.fontSize(18).font('Helvetica-Bold').text('RECIBO DE SUELDO', 40, 40);
-  doc.fontSize(10).font('Helvetica').fillColor('#666').text(`${mesNombre} ${anio}`, 40, 62);
+  // Header: dark blue background
+  const headerH = 70;
+  doc.save();
+  doc.roundedRect(40, 30, 515, headerH, 6).fill('#1e293b');
 
+  // Photo (right side of header)
+  let textEndX = 480;
+  if (user?.foto_perfil) {
+    try {
+      const cleanPath = user.foto_perfil.split('?')[0];
+      const filename = path.basename(cleanPath);
+      const filePath = path.join(process.cwd(), 'public', 'uploads', filename);
+      if (fs.existsSync(filePath)) {
+        doc.image(filePath, 490, 36, { width: 58, height: 58, fit: [58, 58], radius: 29 });
+        textEndX = 480;
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Title + subtitle in header
+  doc.fontSize(18).font('Helvetica-Bold').fillColor('white').text('RECIBO DE SUELDO', 56, 42, { width: textEndX - 56 });
+  doc.fontSize(10).font('Helvetica').fillColor('#94a3b8').text(`${mesNombre} ${anio}`, 56, 66, { width: textEndX - 56 });
+  doc.restore();
+
+  // Employee info below header
   doc.fillColor('#333');
-  doc.save();
   doc.fontSize(10).font('Helvetica');
-  doc.text(`Empleado: ${user?.nombre || '-'}`, 40, 90, { continued: true });
+  doc.text(`Empleado: ${user?.nombre || '-'}`, 40, 110, { continued: true });
   doc.text(`     C.I: ${user?.cedula || '-'}`);
-  doc.restore();
-
-  doc.save();
-  doc.text(`Cargo: ${user?.cargo || '-'}`, 40, 105, { continued: true });
+  doc.text(`Cargo: ${user?.cargo || '-'}`, 40, 125, { continued: true });
   doc.text(`   Valor Hora: ${fmt(calculo.valor_hora)}`);
-  doc.restore();
 
-  doc.moveTo(40, 120).lineTo(555, 120).strokeColor('#ccc').stroke();
+  doc.moveTo(40, 145).lineTo(555, 145).strokeColor('#e2e8f0').stroke();
 
-  let y = 135;
-  doc.fontSize(11).font('Helvetica-Bold').fillColor('#666').text('ASIGNACIONES', 40, y);
+  let y = 160;
+  doc.fontSize(11).font('Helvetica-Bold').fillColor('#64748b').text('ASIGNACIONES', 40, y);
   y += 18;
   doc.font('Helvetica').fillColor('#333').fontSize(10);
   const drawRow = (label: string, value: string, yPos: number, color?: string) => {
@@ -144,7 +163,7 @@ router.get('/pdf/:mes/:anio', (req: AuthRequest, res) => {
   y = drawRow('Total Asignaciones', fmt(calculo.total_asignaciones), y);
 
   y += 14;
-  doc.fontSize(11).font('Helvetica-Bold').fillColor('#666').text('DEDUCIBLES', 40, y);
+  doc.fontSize(11).font('Helvetica-Bold').fillColor('#64748b').text('DEDUCIBLES', 40, y);
   y += 18;
   doc.font('Helvetica').fillColor('#333').fontSize(10);
   y = drawRow(`Aporte IESS (${config?.aporte_iess_pct}%)`, fmt(calculo.iess), y);
