@@ -20,6 +20,7 @@ db.exec(`
     cargo TEXT DEFAULT '',
     rol TEXT DEFAULT 'user' CHECK(rol IN ('admin', 'user')),
     foto_perfil TEXT DEFAULT '',
+    activo INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -64,6 +65,11 @@ db.exec(`
 const columns = db.prepare("PRAGMA table_info(usuarios)").all() as any[];
 if (!columns.some((c: any) => c.name === 'foto_perfil')) {
   db.exec("ALTER TABLE usuarios ADD COLUMN foto_perfil TEXT DEFAULT ''");
+}
+
+// Migración: agregar activo a usuarios si no existe
+if (!columns.some((c: any) => c.name === 'activo')) {
+  db.exec("ALTER TABLE usuarios ADD COLUMN activo INTEGER DEFAULT 1");
 }
 
 // Migración: agregar prestamo_quirografario a registros si no existe

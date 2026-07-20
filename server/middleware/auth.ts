@@ -26,6 +26,13 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
     req.userId = decoded.userId;
+
+    // Check if user is active (blocked users can't access)
+    const user = db.prepare('SELECT activo FROM usuarios WHERE id = ?').get(req.userId) as any;
+    if (user && user.activo === 0) {
+      return res.status(403).json({ error: 'Tu cuenta ha sido bloqueada. Contacta al administrador.' });
+    }
+
     next();
   } catch {
     return res.status(401).json({ error: 'Token inválido' });

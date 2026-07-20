@@ -8,6 +8,7 @@ import DashboardPage from './pages/DashboardPage';
 import RegistroPage from './pages/RegistroPage';
 import ReciboPage from './pages/ReciboPage';
 import ConfigPage from './pages/ConfigPage';
+import AdminPage from './pages/AdminPage';
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/registro" element={<RegistroPage />} />
             <Route path="/recibo" element={<ReciboPage />} />
             <Route path="/config" element={<ConfigPage />} />
+            <Route path="/admin" element={<AdminPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

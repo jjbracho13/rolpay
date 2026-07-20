@@ -6,6 +6,7 @@ export interface User {
   cargo: string;
   rol: 'admin' | 'user';
   foto_perfil: string;
+  activo?: number;
 }
 
 export interface Configuracion {

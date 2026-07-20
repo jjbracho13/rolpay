@@ -146,7 +146,7 @@ router.get('/pdf/:mes/:anio', (req: AuthRequest, res) => {
 
   // S-S-U right side
   doc.fontSize(10).font('Helvetica').fillColor('#94a3b8')
-    .text(`S-S-U   ${ssu}`, margin + contentW - 120, headerY + 22, { width: 120, align: 'right' });
+    .text(`S-S-U   ${ssu}`, margin + contentW - 160, headerY + 22, { width: 140, align: 'right' });
 
   // === EMPLOYEE DATA: light gray bg ===
   const dataY = headerY + headerH + 12;

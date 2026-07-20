@@ -36,3 +36,4 @@ server/db/*.db-wal
 
 # Uploads
 public/uploads/*
+rolpay.db

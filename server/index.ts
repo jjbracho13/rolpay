@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.js';
 import configRoutes from './routes/config.js';
 import registrosRoutes from './routes/registros.js';
 import conceptosRoutes from './routes/conceptos.js';
+import adminRoutes from './routes/admin.js';
 import { authMiddleware, AuthRequest } from './middleware/auth.js';
 import db from './db/connection.js';
 
@@ -87,6 +88,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/registros', registrosRoutes);
 app.use('/api/conceptos', conceptosRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/api/user', authMiddleware, (req: AuthRequest, res) => {
   const user = db.prepare(

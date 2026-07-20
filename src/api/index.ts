@@ -128,3 +128,32 @@ export function apiUpdateConcepto(token: string, id: number, data: { nombre?: st
 export function apiDeleteConcepto(token: string, id: number) {
   return request<{ ok: boolean }>(`/conceptos/${id}`, token, { method: 'DELETE' });
 }
+
+// Admin - User Management
+export interface AdminUser {
+  id: number;
+  nombre: string;
+  email: string;
+  cedula: string;
+  cargo: string;
+  rol: 'admin' | 'user';
+  foto_perfil: string;
+  activo: number;
+  created_at: string;
+}
+
+export function apiAdminGetUsers(token: string) {
+  return request<AdminUser[]>('/admin/users', token);
+}
+
+export function apiAdminUpdateUser(token: string, id: number, data: { rol?: string; activo?: boolean; nombre?: string; cedula?: string; cargo?: string }) {
+  return request<AdminUser>(`/admin/users/${id}`, token, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export function apiAdminChangePassword(token: string, id: number, password: string) {
+  return request<{ ok: boolean }>(`/admin/users/${id}/password`, token, { method: 'PUT', body: JSON.stringify({ password }) });
+}
+
+export function apiAdminDeleteUser(token: string, id: number) {
+  return request<{ ok: boolean }>(`/admin/users/${id}`, token, { method: 'DELETE' });
+}
