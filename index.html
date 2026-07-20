@@ -12,6 +12,18 @@
     <title>RolPay</title>
   </head>
   <body>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(rs) {
+          for (var i = 0; i < rs.length; i++) { rs[i].unregister(); }
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(ns) {
+          for (var i = 0; i < ns.length; i++) { caches.delete(ns[i]); }
+        });
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

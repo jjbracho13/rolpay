@@ -53,6 +53,24 @@ app.use('/uploads', (req, res, next) => {
   next();
 }, express.static(uploadsDir));
 
+// Kill old service workers
+app.get('/sw.js', (_req, res) => {
+  res.set('Content-Type', 'application/javascript');
+  res.send(`
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', () => {
+  self.registration.unregister();
+  self.clients.matchAll().then(clients => {
+    for (const c of clients) { c.navigate(c.url); }
+  });
+});
+`);
+});
+app.get('/registerSW.js', (_req, res) => {
+  res.set('Content-Type', 'application/javascript');
+  res.send('// removed');
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/registros', registrosRoutes);
@@ -138,8 +156,9 @@ app.delete('/api/user/photo', authMiddleware, (req: AuthRequest, res) => {
 });
 
 const distPath = path.join(__dirname, '..', 'dist');
-app.use(express.static(distPath));
+app.use(express.static(distPath, { maxAge: 0, etag: false, lastModified: false }));
 app.get('/{*splat}', (_req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
