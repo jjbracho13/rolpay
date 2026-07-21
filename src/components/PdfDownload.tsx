@@ -36,13 +36,22 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+async function showToast(text: string) {
+  try {
+    const { Toast } = await import('@capacitor/toast');
+    await Toast.show({ text, duration: 'long' });
+  } catch {
+    console.log(text);
+  }
+}
+
 export default function PdfDownload({ mes, anio }: Props) {
   const { token } = useAuth();
   const [generating, setGenerating] = useState(false);
 
   const handleDownload = async () => {
     if (!token) {
-      alert('No hay sesion activa');
+      await showToast('No hay sesion activa');
       return;
     }
     setGenerating(true);
@@ -57,28 +66,32 @@ export default function PdfDownload({ mes, anio }: Props) {
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Error al generar PDF' }));
-        throw new Error(err.error || `Error ${res.status}`);
+        let msg = `Error ${res.status}`;
+        try {
+          const err = await res.json();
+          msg = err.error || msg;
+        } catch {}
+        throw new Error(msg);
       }
 
       if (isNativeApp()) {
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
         const blob = await res.blob();
         const buf = await blob.arrayBuffer();
         const base64 = arrayBufferToBase64(buf);
-        const { Filesystem, Directory } = await import('@capacitor/filesystem');
 
-        let saved = false;
-        const dirs = [Directory.Documents, Directory.ExternalStorage, Directory.Cache];
+        const dirs = [Directory.Cache, Directory.ExternalStorage];
         for (const dir of dirs) {
           try {
+            await Filesystem.mkdir({ path: 'RolPay', directory: dir, recursive: true });
             await Filesystem.writeFile({ path: `RolPay/${filename}`, data: base64, directory: dir });
-            saved = true;
-            const { Toast } = await import('@capacitor/toast');
-            await Toast.show({ text: `PDF guardado en ${dir === Directory.Cache ? 'Cache' : 'Descargas'}/${filename}`, duration: 'long' });
-            break;
-          } catch { /* try next dir */ }
+            await showToast(`PDF guardado en RolPay/${filename}`);
+            return;
+          } catch (e) {
+            console.warn('File write failed for dir', dir, e);
+          }
         }
-        if (!saved) throw new Error('No se pudo guardar el archivo en el dispositivo');
+        throw new Error('No se pudo guardar el archivo');
       } else {
         const blob = await res.blob();
         const blobUrl = URL.createObjectURL(blob);
@@ -93,7 +106,8 @@ export default function PdfDownload({ mes, anio }: Props) {
         }, 5000);
       }
     } catch (err: any) {
-      alert(err.message || 'Error al generar el PDF');
+      console.error('PDF download error:', err);
+      await showToast(err.message || 'Error al generar el PDF');
     } finally {
       setGenerating(false);
     }
