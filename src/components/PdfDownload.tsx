@@ -16,13 +16,24 @@ function isNativeApp(): boolean {
   }
 }
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const CHUNK_SIZE = 8192;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+    const chunk = bytes.subarray(i, i + CHUNK_SIZE);
+    binary += String.fromCharCode.apply(null, chunk as any);
+  }
+  return btoa(binary);
+}
+
 export default function PdfDownload({ mes, anio }: Props) {
   const { token } = useAuth();
   const [generating, setGenerating] = useState(false);
 
   const handleDownload = async () => {
     if (!token) {
-      alert('No hay sesión activa');
+      alert('No hay sesion activa');
       return;
     }
     setGenerating(true);
@@ -35,17 +46,28 @@ export default function PdfDownload({ mes, anio }: Props) {
         const res = await fetch(`${apiBase}/api/registros/pdf/${mes}/${anio}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) throw new Error('Error al generar PDF');
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: 'Error al generar PDF' }));
+          throw new Error(err.error || `Error ${res.status}`);
+        }
         const blob = await res.blob();
         const buf = await blob.arrayBuffer();
-        const bytes = new Uint8Array(buf);
-        let binary = '';
-        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-        const base64 = btoa(binary);
+        const base64 = arrayBufferToBase64(buf);
         const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.ExternalStorage });
-        const { Toast } = await import('@capacitor/toast');
-        await Toast.show({ text: `PDF guardado en Descargas/${filename}`, duration: 'long' });
+
+        // Try Documents first (Android 11+), fallback to ExternalStorage, then Cache
+        let saved = false;
+        const dirs = [Directory.Documents, Directory.ExternalStorage, Directory.Cache];
+        for (const dir of dirs) {
+          try {
+            await Filesystem.writeFile({ path: `RolPay/${filename}`, data: base64, directory: dir });
+            saved = true;
+            const { Toast } = await import('@capacitor/toast');
+            await Toast.show({ text: `PDF guardado en ${dir === Directory.Cache ? 'Cache' : 'Descargas'}/${filename}`, duration: 'long' });
+            break;
+          } catch { /* try next dir */ }
+        }
+        if (!saved) throw new Error('No se pudo guardar el archivo en el dispositivo');
       } else {
         const res = await fetch(`/api/registros/pdf/${mes}/${anio}?_t=${Date.now()}`, {
           headers: { Authorization: `Bearer ${token}` },
