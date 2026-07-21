@@ -146,6 +146,14 @@ export default function Layout() {
             </svg>
             Config
           </NavLink>
+          {user?.rol === 'admin' && (
+            <NavLink to="/admin" className={linkClass}>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              Usuarios
+            </NavLink>
+          )}
           <button onClick={handleLogout} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:text-red-400 transition cursor-pointer">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
