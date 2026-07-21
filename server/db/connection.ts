@@ -94,4 +94,13 @@ if (!tables.some((t: any) => t.name === 'conceptos_variables')) {
   `);
 }
 
+// Ensure at least one admin exists - promote first user if none
+const adminCount = db.prepare('SELECT COUNT(*) as count FROM usuarios WHERE rol = ?').get('admin') as any;
+if (!adminCount || adminCount.count === 0) {
+  const firstUser = db.prepare('SELECT id FROM usuarios ORDER BY id ASC LIMIT 1').get() as any;
+  if (firstUser) {
+    db.prepare('UPDATE usuarios SET rol = ? WHERE id = ?').run('admin', firstUser.id);
+  }
+}
+
 export default db;

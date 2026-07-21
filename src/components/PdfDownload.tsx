@@ -16,6 +16,15 @@ function isNativeApp(): boolean {
   }
 }
 
+function getApiBase(): string {
+  if (isNativeApp()) {
+    const saved = localStorage.getItem('api_url');
+    if (saved) return saved.replace(/\/api\/?$/, '');
+    return 'https://rolpay.onrender.com';
+  }
+  return '';
+}
+
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   const CHUNK_SIZE = 8192;
@@ -40,22 +49,24 @@ export default function PdfDownload({ mes, anio }: Props) {
 
     try {
       const filename = `recibo_${MESES[mes - 1]}_${anio}.pdf`;
+      const apiBase = getApiBase();
+      const url = `${apiBase}/api/registros/pdf/${mes}/${anio}?_t=${Date.now()}`;
+
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Error al generar PDF' }));
+        throw new Error(err.error || `Error ${res.status}`);
+      }
 
       if (isNativeApp()) {
-        let apiBase = (localStorage.getItem('api_url') || 'https://rolpay.onrender.com/api').replace(/\/api\/?$/, '');
-        const res = await fetch(`${apiBase}/api/registros/pdf/${mes}/${anio}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: 'Error al generar PDF' }));
-          throw new Error(err.error || `Error ${res.status}`);
-        }
         const blob = await res.blob();
         const buf = await blob.arrayBuffer();
         const base64 = arrayBufferToBase64(buf);
         const { Filesystem, Directory } = await import('@capacitor/filesystem');
 
-        // Try Documents first (Android 11+), fallback to ExternalStorage, then Cache
         let saved = false;
         const dirs = [Directory.Documents, Directory.ExternalStorage, Directory.Cache];
         for (const dir of dirs) {
@@ -69,15 +80,6 @@ export default function PdfDownload({ mes, anio }: Props) {
         }
         if (!saved) throw new Error('No se pudo guardar el archivo en el dispositivo');
       } else {
-        const res = await fetch(`/api/registros/pdf/${mes}/${anio}?_t=${Date.now()}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: 'Error al generar PDF' }));
-          throw new Error(err.error || `Error ${res.status}`);
-        }
-
         const blob = await res.blob();
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
