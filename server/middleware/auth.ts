@@ -18,6 +18,8 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
   let token: string | undefined;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
+  } else if (req.query && (req.query as any).token) {
+    token = String((req.query as any).token);
   }
 
   if (!token) {
