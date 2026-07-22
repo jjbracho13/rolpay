@@ -49,6 +49,12 @@ export default function RegistroPage() {
 
   const handleSave = async () => {
     if (!token) return;
+
+    if (horas25 < 0 || horas25 > 999) { setMsg('Error: Horas 25% debe estar entre 0 y 999'); return; }
+    if (horas50 < 0 || horas50 > 999) { setMsg('Error: Horas 50% debe estar entre 0 y 999'); return; }
+    if (horas100 < 0 || horas100 > 999) { setMsg('Error: Horas 100% debe estar entre 0 y 999'); return; }
+    if (prestamo < 0 || prestamo > 999999) { setMsg('Error: Préstamo debe estar entre 0 y 999,999'); return; }
+
     setSaving(true);
     setMsg('');
     try {

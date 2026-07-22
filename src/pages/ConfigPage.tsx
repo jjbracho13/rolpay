@@ -39,6 +39,8 @@ export default function ConfigPage() {
 
   const handleConfigChange = (field: keyof Configuracion, value: number) => {
     if (!config || !isAdmin) return;
+    if (!isFinite(value) || value < 0) return;
+    if (field === 'horas_std' && value === 0) return;
     setConfig({ ...config, [field]: value });
   };
 
@@ -49,6 +51,19 @@ export default function ConfigPage() {
 
   const handleSaveConfig = async () => {
     if (!token || !config || !isAdmin) return;
+
+    const fields = ['sueldo_base', 'horas_std', 'aporte_iess_pct', 'subsidio_medico', 'anticipo_quincena', 'prestamo_quirografario', 'fondo_reserva_pct', 'bonificacion'] as const;
+    for (const f of fields) {
+      if (!isFinite(config[f]) || config[f] < 0 || config[f] > 999999) {
+        setMsg(`Error: ${f} debe ser un número positivo`);
+        return;
+      }
+    }
+    if (config.horas_std === 0) {
+      setMsg('Error: Las horas estándar no pueden ser cero');
+      return;
+    }
+
     setSaving(true);
     setMsg('');
     try {
@@ -65,13 +80,18 @@ export default function ConfigPage() {
 
   const handleSaveUser = async () => {
     if (!token || !user) return;
+    if (!user.nombre.trim()) { setMsg('Error: El nombre es requerido'); return; }
+    if (user.nombre.trim().length > 100) { setMsg('Error: El nombre es demasiado largo'); return; }
+    if (user.cedula && user.cedula.length > 20) { setMsg('Error: La cédula es demasiado larga'); return; }
+    if (user.cargo && user.cargo.length > 100) { setMsg('Error: El cargo es demasiado largo'); return; }
+
     setSaving(true);
     setMsg('');
     try {
       const updated = await apiUpdateUser(token, {
-        nombre: user.nombre,
-        cedula: user.cedula,
-        cargo: user.cargo,
+        nombre: user.nombre.trim(),
+        cedula: user.cedula.trim(),
+        cargo: user.cargo.trim(),
       });
       setUser(updated);
       updateUser(updated);
@@ -146,10 +166,11 @@ export default function ConfigPage() {
   };
 
   const handleCreateConcepto = async () => {
-    if (!token || !nuevoConcepto.nombre) return;
+    if (!token || !nuevoConcepto.nombre.trim()) return;
+    if (nuevoConcepto.monto < 0 || nuevoConcepto.monto > 999999) { setMsg('Error: El monto debe estar entre 0 y 999,999'); return; }
     setSaving(true);
     try {
-      const created = await apiCreateConcepto(token, nuevoConcepto);
+      const created = await apiCreateConcepto(token, { ...nuevoConcepto, nombre: nuevoConcepto.nombre.trim() });
       setConceptos([...conceptos, created]);
       setNuevoConcepto({ nombre: '', tipo: 'deduccion', monto: 0 });
       setMsg('Concepto agregado');

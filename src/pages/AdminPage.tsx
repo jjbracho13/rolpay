@@ -110,6 +110,7 @@ export default function AdminPage() {
   // Password modal
   const [pwModal, setPwModal] = useState<{ userId: number; userName: string } | null>(null);
   const [newPassword, setNewPassword] = useState('');
+  const [error2, setError2] = useState('');
 
   // Config modal
   const [cfgModal, setCfgModal] = useState<{ userId: number; userName: string } | null>(null);
@@ -151,14 +152,17 @@ export default function AdminPage() {
 
   const handlePasswordSubmit = async () => {
     if (!token || !pwModal) return;
-    if (!newPassword || newPassword.length < 4) { alert('Minimo 4 caracteres'); return; }
+    if (!newPassword) { setError2('La contraseña es requerida'); return; }
+    if (newPassword.length < 6) { setError2('La contraseña debe tener al menos 6 caracteres'); return; }
+    if (newPassword.length > 128) { setError2('La contraseña es demasiado larga'); return; }
     setSaving(true);
+    setError2('');
     try {
       await apiAdminChangePassword(token, pwModal.userId, newPassword);
       setPwModal(null);
       setNewPassword('');
-      alert('Contrasena actualizada');
-    } catch (e: any) { alert(e.message); }
+      alert('Contraseña actualizada');
+    } catch (e: any) { setError2(e.message); }
     finally { setSaving(false); }
   };
 
@@ -188,13 +192,28 @@ export default function AdminPage() {
 
   const handleConfigSave = async () => {
     if (!token || !cfgModal || !cfg) return;
+
+    if (!cfgUser.nombre.trim()) { setCfgMsg('Error: El nombre es requerido'); return; }
+    if (cfgUser.nombre.trim().length > 100) { setCfgMsg('Error: El nombre es demasiado largo'); return; }
+    if (cfgUser.cedula.length > 20) { setCfgMsg('Error: La cédula es demasiado larga'); return; }
+    if (cfgUser.cargo.length > 100) { setCfgMsg('Error: El cargo es demasiado largo'); return; }
+
+    const fields = ['sueldo_base', 'horas_std', 'aporte_iess_pct', 'subsidio_medico', 'anticipo_quincena', 'prestamo_quirografario', 'fondo_reserva_pct', 'bonificacion'] as const;
+    for (const f of fields) {
+      if (!isFinite(cfg[f]) || cfg[f] < 0 || cfg[f] > 999999) {
+        setCfgMsg(`Error: ${f} debe ser un número positivo`);
+        return;
+      }
+    }
+    if (cfg.horas_std === 0) { setCfgMsg('Error: Las horas estándar no pueden ser cero'); return; }
+
     setCfgSaving(true);
     setCfgMsg('');
     try {
       const result = await apiAdminUpdateUserConfig(token, cfgModal.userId, {
-        nombre: cfgUser.nombre,
-        cedula: cfgUser.cedula,
-        cargo: cfgUser.cargo,
+        nombre: cfgUser.nombre.trim(),
+        cedula: cfgUser.cedula.trim(),
+        cargo: cfgUser.cargo.trim(),
         sueldo_base: cfg.sueldo_base,
         horas_std: cfg.horas_std,
         aporte_iess_pct: cfg.aporte_iess_pct,
@@ -204,7 +223,6 @@ export default function AdminPage() {
         fondo_reserva_pct: cfg.fondo_reserva_pct,
         bonificacion: cfg.bonificacion,
       });
-      // Update user in list
       setUsers(prev => prev.map(u => u.id === cfgModal.userId
         ? { ...u, nombre: result.user.nombre, cedula: result.user.cedula, cargo: result.user.cargo }
         : u
@@ -247,15 +265,18 @@ export default function AdminPage() {
 
       {/* Password Modal */}
       {pwModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setPwModal(null)}>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => { setPwModal(null); setError2(''); }}>
           <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-white mb-1">Cambiar Contrasena</h3>
+            <h3 className="text-lg font-bold text-white mb-1">Cambiar Contraseña</h3>
             <p className="text-sm text-slate-400 mb-4">Para: {pwModal.userName}</p>
+            {error2 && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-300 text-sm rounded-lg p-3 mb-4 text-center">{error2}</div>
+            )}
             <input
               type="password"
               value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Nueva contrasena (min. 4 caracteres)"
+              onChange={(e) => { setNewPassword(e.target.value); setError2(''); }}
+              placeholder="Mínimo 6 caracteres"
               className="w-full px-4 py-2.5 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white text-sm mb-4 outline-none focus:border-emerald-500/50"
               autoFocus
               onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}

@@ -18,9 +18,24 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!form.nombre.trim()) { setError('El nombre es requerido'); return; }
+    if (form.nombre.trim().length > 100) { setError('El nombre es demasiado largo (máx. 100 caracteres)'); return; }
+    if (!form.email.trim()) { setError('El email es requerido'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError('Email inválido'); return; }
+    if (!form.password) { setError('La contraseña es requerida'); return; }
+    if (form.password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return; }
+    if (form.password.length > 128) { setError('La contraseña es demasiado larga'); return; }
+
     setLoading(true);
     try {
-      const data = await apiRegister(form);
+      const data = await apiRegister({
+        nombre: form.nombre.trim(),
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+        cedula: form.cedula.trim(),
+        cargo: form.cargo.trim(),
+      });
       login(data.token, data.user);
       navigate('/config');
     } catch (err: any) {

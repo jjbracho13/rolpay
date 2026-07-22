@@ -2,7 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import db from '../db/connection.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'rolpay_secret_key_2024';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET no está definido. El servidor no puede arrancar sin una secret segura.');
+  process.exit(1);
+}
 
 export interface AuthRequest extends Request {
   userId?: number;
@@ -10,13 +14,10 @@ export interface AuthRequest extends Request {
 
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
-  const queryToken = (req.query as any).token;
 
   let token: string | undefined;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
-  } else if (queryToken) {
-    token = queryToken;
   }
 
   if (!token) {
@@ -24,10 +25,9 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
+    const decoded = jwt.verify(token, JWT_SECRET!) as { userId: number };
     req.userId = decoded.userId;
 
-    // Check if user is active (blocked users can't access)
     const user = db.prepare('SELECT activo FROM usuarios WHERE id = ?').get(req.userId) as any;
     if (user && user.activo === 0) {
       return res.status(403).json({ error: 'Tu cuenta ha sido bloqueada. Contacta al administrador.' });
@@ -52,3 +52,5 @@ export function adminMiddleware(req: AuthRequest, res: Response, next: NextFunct
 
   next();
 }
+
+export { JWT_SECRET };

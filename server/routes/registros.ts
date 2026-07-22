@@ -17,10 +17,29 @@ function getCalculo(userId: number, registro: any) {
   return calcularSalario(config, registro, conceptos);
 }
 
+function isValidMonth(mes: any): boolean {
+  const n = Number(mes);
+  return Number.isInteger(n) && n >= 1 && n <= 12;
+}
+
+function isValidYear(anio: any): boolean {
+  const n = Number(anio);
+  return Number.isInteger(n) && n >= 2020 && n <= 2030;
+}
+
+function isValidHours(v: any): boolean {
+  if (v === undefined || v === null || v === '') return true;
+  const n = Number(v);
+  return typeof n === 'number' && isFinite(n) && n >= 0 && n <= 999;
+}
+
 router.get('/', (req: AuthRequest, res) => {
   const { mes, anio } = req.query;
 
   if (mes && anio) {
+    if (!isValidMonth(mes) || !isValidYear(anio)) {
+      return res.status(400).json({ error: 'Mes (1-12) o año (2020-2030) inválido' });
+    }
     const registro = db.prepare(
       'SELECT * FROM registros WHERE usuario_id = ? AND mes = ? AND anio = ?'
     ).get(req.userId, Number(mes), Number(anio));
@@ -47,6 +66,26 @@ router.post('/', (req: AuthRequest, res) => {
     return res.status(400).json({ error: 'Mes y año son requeridos' });
   }
 
+  if (!isValidMonth(mes) || !isValidYear(anio)) {
+    return res.status(400).json({ error: 'Mes (1-12) o año (2020-2030) inválido' });
+  }
+
+  if (!isValidHours(horas_25) || !isValidHours(horas_50) || !isValidHours(horas_100)) {
+    return res.status(400).json({ error: 'Las horas deben ser números positivos (0-999)' });
+  }
+
+  if (prestamo_quirografario !== undefined && prestamo_quirografario !== null) {
+    const p = Number(prestamo_quirografario);
+    if (!isFinite(p) || p < 0 || p > 999999) {
+      return res.status(400).json({ error: 'El préstamo debe ser un número positivo' });
+    }
+  }
+
+  const h25 = Number(horas_25) || 0;
+  const h50 = Number(horas_50) || 0;
+  const h100 = Number(horas_100) || 0;
+  const prest = Number(prestamo_quirografario) || 0;
+
   const existing = db.prepare(
     'SELECT id FROM registros WHERE usuario_id = ? AND mes = ? AND anio = ?'
   ).get(req.userId, mes, anio) as any;
@@ -54,7 +93,7 @@ router.post('/', (req: AuthRequest, res) => {
   if (existing) {
     db.prepare(
       'UPDATE registros SET horas_25 = ?, horas_50 = ?, horas_100 = ?, prestamo_quirografario = ? WHERE id = ?'
-    ).run(horas_25 || 0, horas_50 || 0, horas_100 || 0, prestamo_quirografario || 0, existing.id);
+    ).run(h25, h50, h100, prest, existing.id);
 
     const registro = db.prepare('SELECT * FROM registros WHERE id = ?').get(existing.id) as any;
     const calculo = getCalculo(req.userId, registro);
@@ -64,7 +103,7 @@ router.post('/', (req: AuthRequest, res) => {
 
   const result = db.prepare(
     'INSERT INTO registros (usuario_id, mes, anio, horas_25, horas_50, horas_100, prestamo_quirografario) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(req.userId, mes, anio, horas_25 || 0, horas_50 || 0, horas_100 || 0, prestamo_quirografario || 0);
+  ).run(req.userId, mes, anio, h25, h50, h100, prest);
 
   const registro = db.prepare('SELECT * FROM registros WHERE id = ?').get(result.lastInsertRowid) as any;
   const calculo = getCalculo(req.userId, registro);
@@ -74,7 +113,11 @@ router.post('/', (req: AuthRequest, res) => {
 
 router.delete('/:id', (req: AuthRequest, res) => {
   const { id } = req.params;
-  db.prepare('DELETE FROM registros WHERE id = ? AND usuario_id = ?').run(id, req.userId);
+  const numId = Number(id);
+  if (!Number.isInteger(numId) || numId <= 0) {
+    return res.status(400).json({ error: 'ID inválido' });
+  }
+  db.prepare('DELETE FROM registros WHERE id = ? AND usuario_id = ?').run(numId, req.userId);
   res.json({ ok: true });
 });
 
@@ -83,6 +126,10 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 router.get('/pdf/:mes/:anio', (req: AuthRequest, res) => {
   const mes = Number(req.params.mes);
   const anio = Number(req.params.anio);
+
+  if (!isValidMonth(mes) || !isValidYear(anio)) {
+    return res.status(400).json({ error: 'Mes (1-12) o año (2020-2030) inválido' });
+  }
 
   const user = db.prepare(
     'SELECT id, nombre, email, cedula, cargo, foto_perfil FROM usuarios WHERE id = ?'
@@ -110,12 +157,10 @@ router.get('/pdf/:mes/:anio', (req: AuthRequest, res) => {
   const margin = 40;
   const contentW = pageW - margin * 2;
 
-  // === HEADER: slate-800 background ===
   const headerH = 72;
   const headerY = 30;
   doc.roundedRect(margin, headerY, contentW, headerH, 8).fill('#1e293b');
 
-  // Photo (circular, left side)
   let titleX = margin + 16;
   const photoR = 26;
   const photoCx = margin + 16 + photoR;
@@ -131,24 +176,20 @@ router.get('/pdf/:mes/:anio', (req: AuthRequest, res) => {
         doc.circle(photoCx, photoCy, photoR).clip();
         doc.image(filePath, photoCx - photoR, photoCy - photoR, { width: photoR * 2, height: photoR * 2 });
         doc.restore();
-        // Border around photo
         doc.circle(photoCx, photoCy, photoR + 1).lineWidth(1).stroke('#475569');
         titleX = photoCx + photoR + 12;
       }
     } catch { /* ignore */ }
   }
 
-  // Title + subtitle
   doc.fontSize(16).font('Helvetica-Bold').fillColor('white')
     .text('RECIBO DE SUELDO', titleX, headerY + 16, { width: 300 });
   doc.fontSize(10).font('Helvetica').fillColor('#94a3b8')
     .text(`${mesNombre} ${anio}`, titleX, headerY + 38, { width: 300 });
 
-  // S-S-U right side
   doc.fontSize(10).font('Helvetica').fillColor('#94a3b8')
     .text(`S-S-U   ${ssu}`, margin + contentW - 160, headerY + 22, { width: 140, align: 'right' });
 
-  // === EMPLOYEE DATA: light gray bg ===
   const dataY = headerY + headerH + 12;
   doc.roundedRect(margin, dataY, contentW, 52, 4).fill('#f8fafc');
 
@@ -167,7 +208,6 @@ router.get('/pdf/:mes/:anio', (req: AuthRequest, res) => {
   doc.fillColor('#64748b').font('Helvetica').text('Valor Hora:', col2X, dataY + 10 + rowH);
   doc.fillColor('#1e293b').font('Helvetica-Bold').text(fmt(calculo.valor_hora), col2X + 60, dataY + 10 + rowH);
 
-  // === ASIGNACIONES ===
   let y = dataY + 70;
   doc.fontSize(10).font('Helvetica-Bold').fillColor('#64748b')
     .text('ASIGNACIONES', margin + 16, y);
@@ -190,15 +230,13 @@ router.get('/pdf/:mes/:anio', (req: AuthRequest, res) => {
   for (const c of calculo.conceptos_asignaciones) {
     y = drawRow(c.nombre, `+${fmt(c.monto)}`, y, '#16a34a');
   }
-  // Total divider
   doc.moveTo(margin + 16, y).lineTo(margin + contentW - 16, y).lineWidth(0.5).stroke('#e2e8f0');
   y += 6;
   doc.font('Helvetica-Bold').fontSize(9);
   y = drawRow('Total Asignaciones', fmt(calculo.total_asignaciones), y);
 
-  // === DEDUCIBLES: light bg ===
   y += 10;
-  doc.roundedRect(margin, y - 4, contentW, 0, 0).fill(); // spacer
+  doc.roundedRect(margin, y - 4, contentW, 0, 0).fill();
   y += 4;
   doc.fontSize(10).font('Helvetica-Bold').fillColor('#64748b')
     .text('DEDUCIBLES', margin + 16, y);
@@ -216,7 +254,6 @@ router.get('/pdf/:mes/:anio', (req: AuthRequest, res) => {
   doc.font('Helvetica-Bold').fontSize(9);
   y = drawRow('Total Deducibles', fmt(calculo.total_deducibles), y);
 
-  // === NETO A COBRAR: green top border ===
   y += 12;
   doc.moveTo(margin, y).lineTo(margin + contentW, y).lineWidth(2).stroke('#22c55e');
   y += 8;
@@ -225,7 +262,6 @@ router.get('/pdf/:mes/:anio', (req: AuthRequest, res) => {
   doc.fontSize(18).fillColor('#16a34a')
     .text(fmt(calculo.neto_cobrar), margin + contentW - 180, y - 2, { width: 160, align: 'right' });
 
-  // === FIRMAS ===
   y += 50;
   const firmaW = 140;
   doc.moveTo(margin + 30, y).lineTo(margin + 30 + firmaW, y).lineWidth(0.5).stroke('#94a3b8');

@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
@@ -17,7 +19,55 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Configurar multer para subir fotos
+// Helmet for security headers
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
+
+// Rate limiting for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos. Intenta de nuevo en 15 minutos.' },
+});
+
+// General API rate limiter
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas peticiones. Espera un momento.' },
+});
+
+// CORS configuration
+const ALLOWED_ORIGINS = [
+  'https://rolpay.onrender.com',
+  'http://localhost:5173',
+  'http://localhost:3001',
+  'http://localhost:3000',
+];
+if (process.env.ALLOWED_ORIGINS) {
+  ALLOWED_ORIGINS.push(...process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()));
+}
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true);
+    }
+  },
+  credentials: true,
+}));
+
+app.use(express.json({ limit: '1mb' }));
+
+// Configure multer
 const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -33,7 +83,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowed = /jpeg|jpg|png|webp/;
     const ext = allowed.test(path.extname(file.originalname).toLowerCase());
@@ -43,18 +93,15 @@ const upload = multer({
   },
 });
 
-app.use(cors());
-app.use(express.json());
-
-// Servir archivos estáticos (fotos) - sin caché
-app.use('/uploads', (req, res, next) => {
+// Protected uploads - requires auth
+app.use('/uploads', authMiddleware, (req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.set('Pragma', 'no-cache');
   res.set('Expires', '0');
   next();
 }, express.static(uploadsDir));
 
-// Kill old service workers and clear all caches
+// Kill old service workers
 const CLEANUP_SW = `
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => {
@@ -77,18 +124,18 @@ app.get('/registerSW.js', (_req, res) => {
   res.set('Content-Type', 'application/javascript');
   res.send(CLEANUP_SW);
 });
-// Unique URL the old SW doesn't know about - serves cleanup SW
 app.get('/rolpay-nuke-sw.js', (_req, res) => {
   res.set('Content-Type', 'application/javascript');
   res.set('Cache-Control', 'no-store');
   res.send(CLEANUP_SW);
 });
 
-app.use('/api/auth', authRoutes);
-app.use('/api/config', configRoutes);
-app.use('/api/registros', registrosRoutes);
-app.use('/api/conceptos', conceptosRoutes);
-app.use('/api/admin', adminRoutes);
+// Auth routes with rate limiting
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/config', apiLimiter, configRoutes);
+app.use('/api/registros', apiLimiter, registrosRoutes);
+app.use('/api/conceptos', apiLimiter, conceptosRoutes);
+app.use('/api/admin', apiLimiter, adminRoutes);
 
 app.get('/api/user', authMiddleware, (req: AuthRequest, res) => {
   const user = db.prepare(
@@ -100,9 +147,22 @@ app.get('/api/user', authMiddleware, (req: AuthRequest, res) => {
 
 app.put('/api/user', authMiddleware, (req: AuthRequest, res) => {
   const { nombre, cedula, cargo } = req.body;
-  db.prepare(
-    'UPDATE usuarios SET nombre = COALESCE(?, nombre), cedula = COALESCE(?, cedula), cargo = COALESCE(?, cargo) WHERE id = ?'
-  ).run(nombre, cedula, cargo, req.userId);
+
+  function trimStr(s: any, max: number): string {
+    return typeof s === 'string' ? s.trim().slice(0, max) : '';
+  }
+
+  if (nombre !== undefined) {
+    const trimmed = trimStr(nombre, 100);
+    if (!trimmed) return res.status(400).json({ error: 'El nombre no puede estar vacío' });
+    db.prepare('UPDATE usuarios SET nombre = ? WHERE id = ?').run(trimmed, req.userId);
+  }
+  if (cedula !== undefined) {
+    db.prepare('UPDATE usuarios SET cedula = ? WHERE id = ?').run(trimStr(cedula, 20), req.userId);
+  }
+  if (cargo !== undefined) {
+    db.prepare('UPDATE usuarios SET cargo = ? WHERE id = ?').run(trimStr(cargo, 100), req.userId);
+  }
 
   const user = db.prepare(
     'SELECT id, nombre, email, cedula, cargo, rol, foto_perfil FROM usuarios WHERE id = ?'
@@ -110,7 +170,7 @@ app.put('/api/user', authMiddleware, (req: AuthRequest, res) => {
   res.json(user);
 });
 
-// Subir foto de perfil
+// Photo upload
 app.post('/api/user/photo', authMiddleware, upload.single('foto'), (req: AuthRequest, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No se proporcionó imagen' });
@@ -120,7 +180,6 @@ app.post('/api/user/photo', authMiddleware, upload.single('foto'), (req: AuthReq
   const fotoPath = `/uploads/user_${req.userId}${ext}`;
   const finalPath = path.join(uploadsDir, `user_${req.userId}${ext}`);
 
-  // Delete old photo with different extension
   const extensions = ['.jpg', '.jpeg', '.png', '.webp'];
   for (const e of extensions) {
     const oldPath = path.join(uploadsDir, `user_${req.userId}${e}`);
@@ -134,24 +193,21 @@ app.post('/api/user/photo', authMiddleware, upload.single('foto'), (req: AuthReq
   const user = db.prepare(
     'SELECT id, nombre, email, cedula, cargo, rol, foto_perfil FROM usuarios WHERE id = ?'
   ).get(req.userId) as any;
-  // Add timestamp to bust cache
   user.foto_perfil = `${fotoPath}?t=${Date.now()}`;
   res.json(user);
 });
 
-// Eliminar foto de perfil
+// Delete photo
 app.delete('/api/user/photo', authMiddleware, (req: AuthRequest, res) => {
   const user = db.prepare('SELECT foto_perfil FROM usuarios WHERE id = ?').get(req.userId) as any;
 
   if (user?.foto_perfil) {
-    // Strip query params and /uploads/ prefix before deleting file
     const cleanPath = user.foto_perfil.split('?')[0];
     const filename = path.basename(cleanPath);
     const filePath = path.join(uploadsDir, filename);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
-    // Also try deleting other extensions
     const ext = path.extname(filename);
     const base = filename.replace(ext, '');
     for (const e of ['.jpg', '.jpeg', '.png', '.webp']) {
@@ -180,7 +236,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor RolPay corriendo en http://localhost:${PORT}`);
 });
 
-// Keep-alive: prevent Render free tier from sleeping
+// Keep-alive
 if (process.env.NODE_ENV === 'production') {
   const RENDER_URL = process.env.RENDER_EXTERNAL_URL || 'https://rolpay.onrender.com';
   setInterval(async () => {
@@ -190,5 +246,5 @@ if (process.env.NODE_ENV === 'production') {
         headers: { 'Content-Type': 'application/json' },
       });
     } catch {}
-  }, 14 * 60 * 1000); // every 14 minutes
+  }, 14 * 60 * 1000);
 }

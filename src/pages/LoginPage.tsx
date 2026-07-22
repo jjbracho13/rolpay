@@ -33,11 +33,17 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!email.trim()) { setError('El email es requerido'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('Email inválido'); return; }
+    if (!password) { setError('La contraseña es requerida'); return; }
+    if (password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return; }
+
     setLoading(true);
     try {
-      const data = await apiLogin(email, password);
+      const data = await apiLogin(email.trim().toLowerCase(), password);
       if (biometricAvailable) {
-        saveCredentials(email, password).catch(() => {});
+        saveCredentials(email.trim().toLowerCase(), password).catch(() => {});
       }
       login(data.token, data.user);
       navigate('/');
