@@ -24,7 +24,7 @@ export default function Layout() {
   };
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex flex-col items-center gap-1 min-w-[56px] px-2 py-2 rounded-lg text-xs font-medium transition shrink-0 ${
+    `flex flex-col items-center gap-1 flex-1 py-2 rounded-lg text-xs font-medium transition ${
       isActive
         ? 'text-emerald-400'
         : 'text-slate-500'
@@ -154,7 +154,7 @@ export default function Layout() {
               Usuarios
             </NavLink>
           )}
-          <button onClick={handleLogout} className="flex flex-col items-center gap-1 min-w-[56px] px-2 py-2 rounded-lg text-xs font-medium text-slate-500 hover:text-red-400 transition cursor-pointer shrink-0">
+          <button onClick={handleLogout} className="flex flex-col items-center gap-1 flex-1 py-2 rounded-lg text-xs font-medium text-slate-500 hover:text-red-400 transition cursor-pointer">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>

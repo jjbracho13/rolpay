@@ -21,40 +21,42 @@ function UserRow({ u, currentUserId, onToggle, onChangeRole, onChangePassword, o
   const isMe = u.id === currentUserId;
 
   return (
-    <div className={`flex items-center gap-4 p-4 rounded-xl border transition ${
+    <div className={`p-4 rounded-xl border transition ${
       u.activo ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-900/50 border-slate-800/50 opacity-60'
     }`}>
-      <div className="relative">
-        {photoUrl ? (
-          <img src={photoUrl} alt={u.nombre} className="w-10 h-10 rounded-full object-cover border border-slate-600" />
-        ) : (
-          <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-sm font-bold">
-            {u.nombre?.charAt(0) || '?'}
-          </div>
-        )}
-        <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-800 ${
-          u.activo ? 'bg-emerald-400' : 'bg-red-400'
-        }`} />
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium text-white truncate">{u.nombre}</p>
-          {u.rol === 'admin' && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">ADMIN</span>
+      <div className="flex items-center gap-4">
+        <div className="relative flex-shrink-0">
+          {photoUrl ? (
+            <img src={photoUrl} alt={u.nombre} className="w-10 h-10 rounded-full object-cover border border-slate-600" />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-sm font-bold">
+              {u.nombre?.charAt(0) || '?'}
+            </div>
           )}
-          {isMe && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400">TU</span>
-          )}
+          <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-800 ${
+            u.activo ? 'bg-emerald-400' : 'bg-red-400'
+          }`} />
         </div>
-        <p className="text-xs text-slate-400 truncate">{u.email}</p>
-        <p className="text-xs text-slate-500 truncate">{u.cargo || 'Sin cargo'} &middot; {u.cedula || 'Sin cedula'}</p>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-white truncate">{u.nombre}</p>
+            {u.rol === 'admin' && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">ADMIN</span>
+            )}
+            {isMe && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400">TU</span>
+            )}
+          </div>
+          <p className="text-xs text-slate-400 truncate">{u.email}</p>
+          <p className="text-xs text-slate-500 truncate">{u.cargo || 'Sin cargo'} &middot; {u.cedula || 'Sin cedula'}</p>
+        </div>
       </div>
 
-      <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+      <div className="flex flex-wrap gap-2 mt-3">
         <button
           onClick={() => onConfig(u.id)}
-          className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 transition cursor-pointer"
+          className="flex-1 min-w-[80px] px-2.5 py-2 rounded-lg text-xs font-medium bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 transition cursor-pointer"
         >
           Configurar
         </button>
@@ -62,17 +64,17 @@ function UserRow({ u, currentUserId, onToggle, onChangeRole, onChangePassword, o
           <>
             <button
               onClick={() => onToggle(u.id, u.activo === 1)}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+              className={`flex-1 min-w-[80px] px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer border ${
                 u.activo
-                  ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20'
-                  : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20'
+                  ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border-amber-500/20'
+                  : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20'
               }`}
             >
               {u.activo ? 'Bloquear' : 'Activar'}
             </button>
             <button
               onClick={() => onChangeRole(u.id, u.rol === 'admin' ? 'user' : 'admin')}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer border ${
+              className={`flex-1 min-w-[80px] px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer border ${
                 u.rol === 'admin'
                   ? 'bg-slate-600/20 text-slate-300 hover:bg-slate-600/30 border-slate-600/30'
                   : 'bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border-purple-500/20'
@@ -82,13 +84,13 @@ function UserRow({ u, currentUserId, onToggle, onChangeRole, onChangePassword, o
             </button>
             <button
               onClick={() => onChangePassword(u.id)}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-700/50 text-slate-300 hover:bg-slate-700 border border-slate-600/30 transition cursor-pointer"
+              className="flex-1 min-w-[80px] px-2.5 py-2 rounded-lg text-xs font-medium bg-slate-700/50 text-slate-300 hover:bg-slate-700 border border-slate-600/30 transition cursor-pointer"
             >
               Contrasena
             </button>
             <button
               onClick={() => onDelete(u.id, u.nombre)}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition cursor-pointer"
+              className="flex-1 min-w-[80px] px-2.5 py-2 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition cursor-pointer"
             >
               Eliminar
             </button>
