@@ -25,18 +25,6 @@ function getApiBase(): string {
   return '';
 }
 
-async function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result as string;
-      resolve(result.split(',')[1]);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
 async function showToast(text: string) {
   try {
     const { Toast } = await import('@capacitor/toast');
@@ -60,39 +48,26 @@ export default function PdfDownload({ mes, anio }: Props) {
     try {
       const filename = `recibo_${MESES[mes - 1]}_${anio}.pdf`;
       const apiBase = getApiBase();
-      const url = `${apiBase}/api/registros/pdf/${mes}/${anio}?_t=${Date.now()}`;
-
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) {
-        let msg = `Error ${res.status}`;
-        try {
-          const err = await res.json();
-          msg = err.error || msg;
-        } catch {}
-        throw new Error(msg);
-      }
 
       if (isNativeApp()) {
-        const blob = await res.blob();
-        const base64 = await blobToBase64(blob);
-        const { Filesystem, Directory } = await import('@capacitor/filesystem');
-
-        const dirs = [Directory.Cache, Directory.ExternalStorage];
-        for (const dir of dirs) {
-          try {
-            await Filesystem.mkdir({ path: 'RolPay', directory: dir, recursive: true });
-            await Filesystem.writeFile({ path: `RolPay/${filename}`, data: base64, directory: dir });
-            await showToast(`PDF guardado en Descargas/RolPay/${filename}`);
-            return;
-          } catch (e) {
-            console.warn('File write failed for dir', dir, e);
-          }
-        }
-        throw new Error('No se pudo guardar el archivo');
+        const { Browser } = await import('@capacitor/browser');
+        const url = `${apiBase}/api/registros/pdf/${mes}/${anio}?token=${encodeURIComponent(token)}&_t=${Date.now()}`;
+        await Browser.open({ url, windowName: '_blank' });
       } else {
+        const url = `${apiBase}/api/registros/pdf/${mes}/${anio}?_t=${Date.now()}`;
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          let msg = `Error ${res.status}`;
+          try {
+            const err = await res.json();
+            msg = err.error || msg;
+          } catch {}
+          throw new Error(msg);
+        }
+
         const blob = await res.blob();
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');

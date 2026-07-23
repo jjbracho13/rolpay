@@ -12,12 +12,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor/android": "^8.4.2",
-    "@capacitor/cli": "^7.6.8",
-    "@capacitor/core": "^8.4.2",
-    "@capacitor/filesystem": "^8.1.2",
-    "@capacitor/toast": "^8.0.1",
-    "@capgo/capacitor-native-biometric": "^8.6.2",
     "@react-pdf/renderer": "^4.5.1",
     "@tailwindcss/vite": "^4.3.2",
     "bcryptjs": "^3.0.3",
@@ -36,6 +30,13 @@
     "tailwindcss": "^4.3.2"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/cli": "^7.6.8",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/toast": "^8.0.1",
+    "@capgo/capacitor-native-biometric": "^8.6.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",
