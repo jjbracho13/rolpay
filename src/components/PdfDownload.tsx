@@ -34,6 +34,18 @@ async function showToast(text: string) {
   }
 }
 
+declare global {
+  interface Window {
+    Capacitor?: {
+      Plugins?: {
+        PdfDownloader?: {
+          download: (options: { url: string; filename: string }) => Promise<{ downloadId: number }>;
+        };
+      };
+    };
+  }
+}
+
 export default function PdfDownload({ mes, anio }: Props) {
   const { token } = useAuth();
   const [generating, setGenerating] = useState(false);
@@ -48,11 +60,18 @@ export default function PdfDownload({ mes, anio }: Props) {
     try {
       const filename = `recibo_${MESES[mes - 1]}_${anio}.pdf`;
       const apiBase = getApiBase();
-      const pdfUrl = `${apiBase}/api/registros/pdf/${mes}/${anio}?token=${encodeURIComponent(token)}&_t=${Date.now()}`;
 
       if (isNativeApp()) {
-        window.location.href = pdfUrl;
-        await showToast('Descargando PDF...');
+        const url = `${apiBase}/api/registros/pdf/${mes}/${anio}?token=${encodeURIComponent(token)}&_t=${Date.now()}`;
+        const plugin = window.Capacitor?.Plugins?.PdfDownloader;
+
+        if (plugin) {
+          await plugin.download({ url, filename });
+          await showToast('PDF descargado en Descargas/RolPay/' + filename);
+        } else {
+          window.location.href = url;
+          await showToast('Abriendo PDF...');
+        }
       } else {
         const url = `${apiBase}/api/registros/pdf/${mes}/${anio}?_t=${Date.now()}`;
         const res = await fetch(url, {
