@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import db from '../db/connection.js';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('FATAL: JWT_SECRET no está definido. El servidor no puede arrancar sin una secret segura.');
-  process.exit(1);
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.JWT_SECRET) {
+  console.warn('WARN: JWT_SECRET no estaba definido. Se generó uno temporal. Los tokens anteriores serán inválidos.');
 }
 
 export interface AuthRequest extends Request {
