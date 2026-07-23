@@ -48,11 +48,11 @@ export default function PdfDownload({ mes, anio }: Props) {
     try {
       const filename = `recibo_${MESES[mes - 1]}_${anio}.pdf`;
       const apiBase = getApiBase();
+      const pdfUrl = `${apiBase}/api/registros/pdf/${mes}/${anio}?token=${encodeURIComponent(token)}&_t=${Date.now()}`;
 
       if (isNativeApp()) {
-        const { Browser } = await import('@capacitor/browser');
-        const url = `${apiBase}/api/registros/pdf/${mes}/${anio}?token=${encodeURIComponent(token)}&_t=${Date.now()}`;
-        await Browser.open({ url, windowName: '_blank' });
+        window.location.href = pdfUrl;
+        await showToast('Descargando PDF...');
       } else {
         const url = `${apiBase}/api/registros/pdf/${mes}/${anio}?_t=${Date.now()}`;
         const res = await fetch(url, {
