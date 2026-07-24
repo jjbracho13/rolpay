@@ -1,7 +1,17 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+
+function isNativeApp(): boolean {
+  try {
+    const c = (window as any).Capacitor;
+    return c && typeof c.getPlatform === 'function' && c.getPlatform() !== 'web';
+  } catch {
+    return false;
+  }
+}
 
 function getApiBase(): string {
-  if (typeof window !== 'undefined' && (window as any).Capacitor) {
+  if (isNativeApp()) {
     const saved = localStorage.getItem('api_url');
     if (saved) return saved.replace('/api', '');
     return 'https://rolpay.onrender.com';
@@ -10,10 +20,11 @@ function getApiBase(): string {
 }
 
 export function usePhotoUrl(fotoPerfil: string | null | undefined): string | null {
+  const { token } = useAuth();
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!fotoPerfil) {
+    if (!fotoPerfil || !token) {
       setBlobUrl(null);
       return;
     }
@@ -23,7 +34,10 @@ export function usePhotoUrl(fotoPerfil: string | null | undefined): string | nul
 
     let cancelled = false;
 
-    fetch(fullUrl, { cache: 'no-store' })
+    fetch(fullUrl, {
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${token}` },
+    })
       .then((res) => {
         if (!res.ok) throw new Error('fetch failed');
         return res.blob();
@@ -44,7 +58,7 @@ export function usePhotoUrl(fotoPerfil: string | null | undefined): string | nul
     return () => {
       cancelled = true;
     };
-  }, [fotoPerfil]);
+  }, [fotoPerfil, token]);
 
   return blobUrl;
 }

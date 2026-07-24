@@ -233,11 +233,17 @@ router.get('/pdf/:mes/:anio', (req: AuthRequest, res) => {
   doc.moveTo(margin + 16, y).lineTo(margin + contentW - 16, y).lineWidth(0.5).stroke('#e2e8f0');
   y += 6;
   doc.font('Helvetica-Bold').fontSize(9);
-  y = drawRow('Total Asignaciones', fmt(calculo.total_asignaciones), y);
+  y = drawRow('Total Deducibles', fmt(calculo.total_deducibles), y);
 
   y += 10;
   doc.roundedRect(margin, y - 4, contentW, 0, 0).fill();
   y += 4;
+  doc.fontSize(10).font('Helvetica-Bold').fillColor('#64748b')
+    .text('MONTO TOTAL', margin + 16, y, { width: 250 });
+  doc.fontSize(12).fillColor('#1e293b')
+    .text(fmt(calculo.total_asignaciones), margin + contentW - 180, y, { width: 160, align: 'right' });
+
+  y += 20;
   doc.fontSize(10).font('Helvetica-Bold').fillColor('#64748b')
     .text('DEDUCIBLES', margin + 16, y);
   y += 20;

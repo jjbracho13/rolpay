@@ -4,28 +4,50 @@ import { useAuth } from '../context/AuthContext';
 import { apiRegister } from '../api';
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({ nombre: '', email: '', password: '', cedula: '', cargo: '' });
+  const [form, setForm] = useState({ nombre: '', email: '', password: '', confirmPassword: '', cedula: '', cargo: '' });
   const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'cedula') {
+      const cleaned = value.replace(/[^0-9]/g, '');
+      setForm({ ...form, [name]: cleaned });
+    } else {
+      setForm({ ...form, [name]: value });
+    }
+    if (errors[name]) setErrors({ ...errors, [name]: '' });
+    if (error) setError('');
   };
+
+  const validate = (): boolean => {
+    const e: Record<string, string> = {};
+    if (!form.nombre.trim()) e.nombre = 'El nombre es requerido';
+    else if (form.nombre.trim().length > 100) e.nombre = 'Máx. 100 caracteres';
+    if (!form.email.trim()) e.email = 'El email es requerido';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Email inválido';
+    if (!form.password) e.password = 'La contraseña es requerida';
+    else if (form.password.length < 6) e.password = 'Mínimo 6 caracteres';
+    else if (form.password.length > 128) e.password = 'Máximo 128 caracteres';
+    if (!form.confirmPassword) e.confirmPassword = 'Confirma tu contraseña';
+    else if (form.password !== form.confirmPassword) e.confirmPassword = 'Las contraseñas no coinciden';
+    if (form.cedula && !/^\d+$/.test(form.cedula)) e.cedula = 'Solo se permiten números';
+    else if (form.cedula && form.cedula.length > 20) e.cedula = 'Máx. 20 dígitos';
+    if (form.cargo && form.cargo.length > 100) e.cargo = 'Máx. 100 caracteres';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleBlur = () => validate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    if (!form.nombre.trim()) { setError('El nombre es requerido'); return; }
-    if (form.nombre.trim().length > 100) { setError('El nombre es demasiado largo (máx. 100 caracteres)'); return; }
-    if (!form.email.trim()) { setError('El email es requerido'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError('Email inválido'); return; }
-    if (!form.password) { setError('La contraseña es requerida'); return; }
-    if (form.password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return; }
-    if (form.password.length > 128) { setError('La contraseña es demasiado larga'); return; }
+    if (!validate()) return;
 
     setLoading(true);
     try {
@@ -74,10 +96,11 @@ export default function RegisterPage() {
               name="nombre"
               value={form.nombre}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition"
+              onBlur={handleBlur}
+              className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition ${errors.nombre ? 'border-red-500/50' : 'border-slate-600/50'}`}
               placeholder="Tu nombre"
-              required
             />
+            {errors.nombre && <p className="text-red-400 text-xs mt-1">{errors.nombre}</p>}
           </div>
 
           <div>
@@ -87,10 +110,11 @@ export default function RegisterPage() {
               name="email"
               value={form.email}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition"
+              onBlur={handleBlur}
+              className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition ${errors.email ? 'border-red-500/50' : 'border-slate-600/50'}`}
               placeholder="tu@email.com"
-              required
             />
+            {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email}</p>}
           </div>
 
           <div>
@@ -101,9 +125,9 @@ export default function RegisterPage() {
                 name="password"
                 value={form.password}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 pr-10 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition"
+                onBlur={handleBlur}
+                className={`w-full px-4 py-2.5 pr-10 bg-slate-900/50 border rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition ${errors.password ? 'border-red-500/50' : 'border-slate-600/50'}`}
                 placeholder="••••••••"
-                required
               />
               <button
                 type="button"
@@ -122,18 +146,36 @@ export default function RegisterPage() {
                 )}
               </button>
             </div>
+            {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Confirmar contraseña</label>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              name="confirmPassword"
+              value={form.confirmPassword}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition ${errors.confirmPassword ? 'border-red-500/50' : 'border-slate-600/50'}`}
+              placeholder="••••••••"
+            />
+            {errors.confirmPassword && <p className="text-red-400 text-xs mt-1">{errors.confirmPassword}</p>}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1.5">Cédula</label>
             <input
               type="text"
+              inputMode="numeric"
               name="cedula"
               value={form.cedula}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition"
-              placeholder="0000000000"
+              onBlur={handleBlur}
+              className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition ${errors.cedula ? 'border-red-500/50' : 'border-slate-600/50'}`}
+              placeholder="Solo números"
             />
+            {errors.cedula && <p className="text-red-400 text-xs mt-1">{errors.cedula}</p>}
           </div>
 
           <div>
@@ -143,9 +185,11 @@ export default function RegisterPage() {
               name="cargo"
               value={form.cargo}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition"
+              onBlur={handleBlur}
+              className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition ${errors.cargo ? 'border-red-500/50' : 'border-slate-600/50'}`}
               placeholder="Tu cargo"
             />
+            {errors.cargo && <p className="text-red-400 text-xs mt-1">{errors.cargo}</p>}
           </div>
 
           <button

@@ -45,7 +45,11 @@ router.put('/users/:id', (req: AuthRequest, res) => {
     db.prepare('UPDATE usuarios SET nombre = ? WHERE id = ?').run(trimmed, numId);
   }
   if (cedula !== undefined) {
-    db.prepare('UPDATE usuarios SET cedula = ? WHERE id = ?').run(trimStr(cedula, 20), numId);
+    const cedulaStr = trimStr(cedula, 20);
+    if (cedulaStr && !/^\d+$/.test(cedulaStr)) {
+      return res.status(400).json({ error: 'La cédula solo puede contener números' });
+    }
+    db.prepare('UPDATE usuarios SET cedula = ? WHERE id = ?').run(cedulaStr, numId);
   }
   if (cargo !== undefined) {
     db.prepare('UPDATE usuarios SET cargo = ? WHERE id = ?').run(trimStr(cargo, 100), numId);
@@ -154,6 +158,9 @@ router.put('/users/:id/config', (req: AuthRequest, res) => {
   }
   if (cedula !== undefined && typeof cedula === 'string' && cedula.length > 20) {
     return res.status(400).json({ error: 'La cédula es demasiado larga (máx. 20 caracteres)' });
+  }
+  if (cedula !== undefined && typeof cedula === 'string' && cedula && !/^\d+$/.test(cedula)) {
+    return res.status(400).json({ error: 'La cédula solo puede contener números' });
   }
   if (cargo !== undefined && typeof cargo === 'string' && cargo.length > 100) {
     return res.status(400).json({ error: 'El cargo es demasiado largo (máx. 100 caracteres)' });

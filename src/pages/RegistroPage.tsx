@@ -1,9 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiGetRegistroMes, apiSaveRegistro, apiGetConfig } from '../api';
 import type { Configuracion } from '../types';
 import { MESES } from '../types';
+
+function calcularPreview(config: Configuracion, horas25: number, horas50: number, horas100: number, prestamo: number) {
+  const valor_hora = config.sueldo_base / config.horas_std;
+  const recargo_25 = valor_hora * 1.25 * horas25;
+  const recargo_50 = valor_hora * 1.50 * horas50;
+  const recargo_100 = valor_hora * 2.00 * horas100;
+  const total_horas_extras = recargo_25 + recargo_50 + recargo_100;
+  const total_asignaciones = config.sueldo_base + total_horas_extras;
+  const iess = total_asignaciones * (config.aporte_iess_pct / 100);
+  const total_deducibles = iess + config.subsidio_medico + config.anticipo_quincena + prestamo + config.bonificacion;
+  const neto_cobrar = total_asignaciones - total_deducibles;
+  return { valor_hora, recargo_25, recargo_50, recargo_100, neto_cobrar };
+}
 
 const ahora = new Date();
 const MES_ACTUAL = ahora.getMonth() + 1;
@@ -20,10 +33,11 @@ export default function RegistroPage() {
   const [horas50, setHoras50] = useState(0);
   const [horas100, setHoras100] = useState(0);
   const [prestamo, setPrestamo] = useState(0);
-  const [_config, setConfig] = useState<Configuracion | null>(null);
+  const [config, setConfig] = useState<Configuracion | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!token) return;
@@ -47,13 +61,25 @@ export default function RegistroPage() {
     }).finally(() => setLoading(false));
   }, [token, mes, anio]);
 
-  const handleSave = async () => {
-    if (!token) return;
+  const preview = useMemo(() => {
+    if (!config) return null;
+    return calcularPreview(config, horas25, horas50, horas100, prestamo);
+  }, [config, horas25, horas50, horas100, prestamo]);
 
-    if (horas25 < 0 || horas25 > 999) { setMsg('Error: Horas 25% debe estar entre 0 y 999'); return; }
-    if (horas50 < 0 || horas50 > 999) { setMsg('Error: Horas 50% debe estar entre 0 y 999'); return; }
-    if (horas100 < 0 || horas100 > 999) { setMsg('Error: Horas 100% debe estar entre 0 y 999'); return; }
-    if (prestamo < 0 || prestamo > 999999) { setMsg('Error: Préstamo debe estar entre 0 y 999,999'); return; }
+  const fmt = (v: number) => `$ ${v.toFixed(2)}`;
+
+  const validate = (): boolean => {
+    const e: Record<string, string> = {};
+    if (horas25 < 0 || horas25 > 999) e.horas25 = '0-999';
+    if (horas50 < 0 || horas50 > 999) e.horas50 = '0-999';
+    if (horas100 < 0 || horas100 > 999) e.horas100 = '0-999';
+    if (prestamo < 0 || prestamo > 999999) e.prestamo = '0-999,999';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSave = async () => {
+    if (!token || !validate()) return;
 
     setSaving(true);
     setMsg('');
@@ -131,13 +157,18 @@ export default function RegistroPage() {
             <input
               type="number"
               min="0"
+              max="999"
               step="0.5"
               value={horas25 || ''}
               onChange={(e) => setHoras25(Number(e.target.value) || 0)}
-              className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white text-xl md:text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+              onBlur={validate}
+              className={`w-full px-4 py-3 bg-slate-900/50 border rounded-lg text-white text-xl md:text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${errors.horas25 ? 'border-red-500/50' : 'border-slate-600/50'}`}
               placeholder="0"
             />
             <p className="text-center text-slate-500 text-sm mt-2">horas</p>
+            {preview && (
+              <p className="text-center text-blue-400 text-sm font-medium mt-1">{fmt(preview.recargo_25)}</p>
+            )}
           </div>
 
           <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 md:p-6">
@@ -153,13 +184,18 @@ export default function RegistroPage() {
             <input
               type="number"
               min="0"
+              max="999"
               step="0.5"
               value={horas50 || ''}
               onChange={(e) => setHoras50(Number(e.target.value) || 0)}
-              className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white text-xl md:text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50"
+              onBlur={validate}
+              className={`w-full px-4 py-3 bg-slate-900/50 border rounded-lg text-white text-xl md:text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-amber-500/50 ${errors.horas50 ? 'border-red-500/50' : 'border-slate-600/50'}`}
               placeholder="0"
             />
             <p className="text-center text-slate-500 text-sm mt-2">horas</p>
+            {preview && (
+              <p className="text-center text-amber-400 text-sm font-medium mt-1">{fmt(preview.recargo_50)}</p>
+            )}
           </div>
 
           <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 md:p-6">
@@ -175,13 +211,18 @@ export default function RegistroPage() {
             <input
               type="number"
               min="0"
+              max="999"
               step="0.5"
               value={horas100 || ''}
               onChange={(e) => setHoras100(Number(e.target.value) || 0)}
-              className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white text-xl md:text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50"
+              onBlur={validate}
+              className={`w-full px-4 py-3 bg-slate-900/50 border rounded-lg text-white text-xl md:text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-red-500/50 ${errors.horas100 ? 'border-red-500/50' : 'border-slate-600/50'}`}
               placeholder="0"
             />
             <p className="text-center text-slate-500 text-sm mt-2">horas</p>
+            {preview && (
+              <p className="text-center text-red-400 text-sm font-medium mt-1">{fmt(preview.recargo_100)}</p>
+            )}
           </div>
         </div>
       )}
@@ -205,7 +246,8 @@ export default function RegistroPage() {
           step="0.01"
           value={prestamo || ''}
           onChange={(e) => setPrestamo(Number(e.target.value) || 0)}
-          className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white text-xl md:text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50"
+          onBlur={validate}
+          className={`w-full px-4 py-3 bg-slate-900/50 border rounded-lg text-white text-xl md:text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${errors.prestamo ? 'border-red-500/50' : 'border-slate-600/50'}`}
           placeholder="0.00"
         />
         <p className="text-center text-slate-500 text-sm mt-2">dólares</p>
@@ -213,9 +255,17 @@ export default function RegistroPage() {
 
       <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 md:p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <p className="text-slate-400 text-sm">Total horas extras</p>
-            <p className="text-2xl md:text-3xl font-bold text-white">{totalHoras.toFixed(1)}h</p>
+          <div className="flex items-center gap-6">
+            <div>
+              <p className="text-slate-400 text-sm">Total horas extras</p>
+              <p className="text-2xl md:text-3xl font-bold text-white">{totalHoras.toFixed(1)}h</p>
+            </div>
+            {preview && (
+              <div>
+                <p className="text-slate-400 text-sm">Estimado a cobrar</p>
+                <p className="text-2xl md:text-3xl font-bold text-emerald-400">{fmt(preview.neto_cobrar)}</p>
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
             {msg && (

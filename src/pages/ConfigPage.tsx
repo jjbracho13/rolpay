@@ -19,6 +19,7 @@ export default function ConfigPage() {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [msg, setMsg] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [nuevoConcepto, setNuevoConcepto] = useState({ nombre: '', tipo: 'deduccion' as 'asignacion' | 'deduccion', monto: 0 });
 
   useEffect(() => {
@@ -46,23 +47,44 @@ export default function ConfigPage() {
 
   const handleUserChange = (field: keyof User, value: string) => {
     if (!user) return;
-    setUser({ ...user, [field]: value });
+    if (field === 'cedula') {
+      const cleaned = value.replace(/[^0-9]/g, '');
+      setUser({ ...user, [field]: cleaned });
+    } else {
+      setUser({ ...user, [field]: value });
+    }
+    if (errors[field]) setErrors({ ...errors, [field]: '' });
+  };
+
+  const validateUser = (): boolean => {
+    if (!user) return false;
+    const e: Record<string, string> = {};
+    if (!user.nombre.trim()) e.nombre = 'El nombre es requerido';
+    else if (user.nombre.trim().length > 100) e.nombre = 'Máx. 100 caracteres';
+    if (user.cedula && !/^\d+$/.test(user.cedula)) e.cedula = 'Solo se permiten números';
+    else if (user.cedula && user.cedula.length > 20) e.cedula = 'Máx. 20 dígitos';
+    if (user.cargo && user.cargo.length > 100) e.cargo = 'Máx. 100 caracteres';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const validateConfig = (): boolean => {
+    if (!config || !isAdmin) return false;
+    const e: Record<string, string> = {};
+    const fields = ['sueldo_base', 'horas_std', 'aporte_iess_pct', 'subsidio_medico', 'anticipo_quincena', 'prestamo_quirografario', 'fondo_reserva_pct', 'bonificacion'] as const;
+    for (const f of fields) {
+      if (!isFinite(config[f]) || config[f] < 0 || config[f] > 999999) {
+        e[f] = '0-999,999';
+      }
+    }
+    if (config.horas_std === 0) e.horas_std = 'No puede ser 0';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const handleSaveConfig = async () => {
     if (!token || !config || !isAdmin) return;
-
-    const fields = ['sueldo_base', 'horas_std', 'aporte_iess_pct', 'subsidio_medico', 'anticipo_quincena', 'prestamo_quirografario', 'fondo_reserva_pct', 'bonificacion'] as const;
-    for (const f of fields) {
-      if (!isFinite(config[f]) || config[f] < 0 || config[f] > 999999) {
-        setMsg(`Error: ${f} debe ser un número positivo`);
-        return;
-      }
-    }
-    if (config.horas_std === 0) {
-      setMsg('Error: Las horas estándar no pueden ser cero');
-      return;
-    }
+    if (!validateConfig()) { setMsg('Error: Revisa los valores de configuración'); return; }
 
     setSaving(true);
     setMsg('');
@@ -80,10 +102,7 @@ export default function ConfigPage() {
 
   const handleSaveUser = async () => {
     if (!token || !user) return;
-    if (!user.nombre.trim()) { setMsg('Error: El nombre es requerido'); return; }
-    if (user.nombre.trim().length > 100) { setMsg('Error: El nombre es demasiado largo'); return; }
-    if (user.cedula && user.cedula.length > 20) { setMsg('Error: La cédula es demasiado larga'); return; }
-    if (user.cargo && user.cargo.length > 100) { setMsg('Error: El cargo es demasiado largo'); return; }
+    if (!validateUser()) { setMsg('Error: Revisa los datos personales'); return; }
 
     setSaving(true);
     setMsg('');
@@ -353,18 +372,24 @@ export default function ConfigPage() {
               type="text"
               value={user?.nombre || ''}
               onChange={(e) => handleUserChange('nombre', e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              onBlur={validateUser}
+              className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${errors.nombre ? 'border-red-500/50' : 'border-slate-600/50'}`}
             />
+            {errors.nombre && <p className="text-red-400 text-xs mt-1">{errors.nombre}</p>}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Cédula</label>
               <input
                 type="text"
+                inputMode="numeric"
                 value={user?.cedula || ''}
                 onChange={(e) => handleUserChange('cedula', e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                onBlur={validateUser}
+                className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${errors.cedula ? 'border-red-500/50' : 'border-slate-600/50'}`}
+                placeholder="Solo números"
               />
+              {errors.cedula && <p className="text-red-400 text-xs mt-1">{errors.cedula}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Cargo</label>
@@ -372,8 +397,10 @@ export default function ConfigPage() {
                 type="text"
                 value={user?.cargo || ''}
                 onChange={(e) => handleUserChange('cargo', e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                onBlur={validateUser}
+                className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${errors.cargo ? 'border-red-500/50' : 'border-slate-600/50'}`}
               />
+              {errors.cargo && <p className="text-red-400 text-xs mt-1">{errors.cargo}</p>}
             </div>
           </div>
           <div className="flex justify-end">
@@ -410,9 +437,11 @@ export default function ConfigPage() {
                 step="0.01"
                 value={config?.sueldo_base || 0}
                 onChange={(e) => handleConfigChange('sueldo_base', Number(e.target.value))}
+                onBlur={validateConfig}
                 disabled={!isAdmin}
-                className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed ${errors.sueldo_base ? 'border-red-500/50' : 'border-slate-600/50'}`}
               />
+              {errors.sueldo_base && <p className="text-red-400 text-xs mt-1">{errors.sueldo_base}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Horas Std (STD)</label>
@@ -421,9 +450,11 @@ export default function ConfigPage() {
                 step="0.01"
                 value={config?.horas_std || 0}
                 onChange={(e) => handleConfigChange('horas_std', Number(e.target.value))}
+                onBlur={validateConfig}
                 disabled={!isAdmin}
-                className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed ${errors.horas_std ? 'border-red-500/50' : 'border-slate-600/50'}`}
               />
+              {errors.horas_std && <p className="text-red-400 text-xs mt-1">{errors.horas_std}</p>}
             </div>
           </div>
 
@@ -435,9 +466,11 @@ export default function ConfigPage() {
                 step="0.01"
                 value={config?.aporte_iess_pct || 0}
                 onChange={(e) => handleConfigChange('aporte_iess_pct', Number(e.target.value))}
+                onBlur={validateConfig}
                 disabled={!isAdmin}
-                className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed ${errors.aporte_iess_pct ? 'border-red-500/50' : 'border-slate-600/50'}`}
               />
+              {errors.aporte_iess_pct && <p className="text-red-400 text-xs mt-1">{errors.aporte_iess_pct}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Fondos de Reserva (%)</label>
@@ -446,9 +479,11 @@ export default function ConfigPage() {
                 step="0.01"
                 value={config?.fondo_reserva_pct || 0}
                 onChange={(e) => handleConfigChange('fondo_reserva_pct', Number(e.target.value))}
+                onBlur={validateConfig}
                 disabled={!isAdmin}
-                className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed ${errors.fondo_reserva_pct ? 'border-red-500/50' : 'border-slate-600/50'}`}
               />
+              {errors.fondo_reserva_pct && <p className="text-red-400 text-xs mt-1">{errors.fondo_reserva_pct}</p>}
             </div>
           </div>
 
@@ -460,9 +495,11 @@ export default function ConfigPage() {
                 step="0.01"
                 value={config?.subsidio_medico || 0}
                 onChange={(e) => handleConfigChange('subsidio_medico', Number(e.target.value))}
+                onBlur={validateConfig}
                 disabled={!isAdmin}
-                className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed ${errors.subsidio_medico ? 'border-red-500/50' : 'border-slate-600/50'}`}
               />
+              {errors.subsidio_medico && <p className="text-red-400 text-xs mt-1">{errors.subsidio_medico}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Anticipo Quincena ($)</label>
@@ -471,9 +508,11 @@ export default function ConfigPage() {
                 step="0.01"
                 value={config?.anticipo_quincena || 0}
                 onChange={(e) => handleConfigChange('anticipo_quincena', Number(e.target.value))}
+                onBlur={validateConfig}
                 disabled={!isAdmin}
-                className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed ${errors.anticipo_quincena ? 'border-red-500/50' : 'border-slate-600/50'}`}
               />
+              {errors.anticipo_quincena && <p className="text-red-400 text-xs mt-1">{errors.anticipo_quincena}</p>}
             </div>
           </div>
 
@@ -485,9 +524,11 @@ export default function ConfigPage() {
                 step="0.01"
                 value={config?.prestamo_quirografario || 0}
                 onChange={(e) => handleConfigChange('prestamo_quirografario', Number(e.target.value))}
+                onBlur={validateConfig}
                 disabled={!isAdmin}
-                className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed ${errors.prestamo_quirografario ? 'border-red-500/50' : 'border-slate-600/50'}`}
               />
+              {errors.prestamo_quirografario && <p className="text-red-400 text-xs mt-1">{errors.prestamo_quirografario}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Bonificación ($)</label>
@@ -496,9 +537,11 @@ export default function ConfigPage() {
                 step="0.01"
                 value={config?.bonificacion || 0}
                 onChange={(e) => handleConfigChange('bonificacion', Number(e.target.value))}
+                onBlur={validateConfig}
                 disabled={!isAdmin}
-                className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed ${errors.bonificacion ? 'border-red-500/50' : 'border-slate-600/50'}`}
               />
+              {errors.bonificacion && <p className="text-red-400 text-xs mt-1">{errors.bonificacion}</p>}
             </div>
           </div>
 

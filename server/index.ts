@@ -158,7 +158,11 @@ app.put('/api/user', authMiddleware, (req: AuthRequest, res) => {
     db.prepare('UPDATE usuarios SET nombre = ? WHERE id = ?').run(trimmed, req.userId);
   }
   if (cedula !== undefined) {
-    db.prepare('UPDATE usuarios SET cedula = ? WHERE id = ?').run(trimStr(cedula, 20), req.userId);
+    const cedulaStr = trimStr(cedula, 20);
+    if (cedulaStr && !/^\d+$/.test(cedulaStr)) {
+      return res.status(400).json({ error: 'La cédula solo puede contener números' });
+    }
+    db.prepare('UPDATE usuarios SET cedula = ? WHERE id = ?').run(cedulaStr, req.userId);
   }
   if (cargo !== undefined) {
     db.prepare('UPDATE usuarios SET cargo = ? WHERE id = ?').run(trimStr(cargo, 100), req.userId);

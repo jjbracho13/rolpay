@@ -43,6 +43,11 @@ router.post('/register', async (req, res) => {
     const pwErr = validatePassword(password);
     if (pwErr) return res.status(400).json({ error: pwErr });
 
+    const cedulaTrimmed = trimStr(cedula, 20);
+    if (cedulaTrimmed && !/^\d+$/.test(cedulaTrimmed)) {
+      return res.status(400).json({ error: 'La cédula solo puede contener números' });
+    }
+
     const existing = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(email);
     if (existing) {
       return res.status(409).json({ error: 'El email ya está registrado' });
